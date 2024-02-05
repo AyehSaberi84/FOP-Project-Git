@@ -3778,8 +3778,10 @@ int main()
                     }
                     if (chq == q)
                     {
+                        removeSpaces(linems);
                         des1 = strtok(linems, ":");
                         des1 = strtok(NULL, " ");
+                        printf("%s",des1);
                         break;
                     }
                     q++;
@@ -3921,6 +3923,7 @@ int main()
                     }
                     if (chq == q)
                     {
+                        removeSpaces(linems);
                         des1 = strtok(linems, ":");
                         des1 = strtok(NULL, " ");
                         break;
@@ -4469,7 +4472,7 @@ int main()
             struct stat fileStat;
 
             // Open the directory
-            dir = opendir(copy_unstage);
+            dir = opendir(copy_fstaging);
             if (dir == NULL)
             {
                 printf("Unable to open the directory.\n");
@@ -4484,7 +4487,7 @@ int main()
                 if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
                 {
                     char copy_s[100];
-                    strcpy(copy_s, copy_unstage);
+                    strcpy(copy_s, copy_fstaging);
                     strcat(copy_s, "\\\\");
                     strcat(copy_s, entry->d_name);
                     printf("%s\n", entry->d_name);
@@ -4495,27 +4498,33 @@ int main()
                     strcat(copy_hook, "\\\\hook.txt");
                     FILE *hello = fopen(copy_hook, "r");
                     char lines[100];
-                    // while (fgets(lines,sizeof(lines),hello)!=NULL){
-                    //     lines[strcspn(lines,"\n")]='\0';
-                    //     if (strcmp(lines,"character-limit")==0){
-                    //         characters(copy_s);
-                    //     }
-                    //     if (strcmp(lines,"time-limit")==0){
-                    //      checkFileTimes(copy_s);
-                    //     }
-                    //     if (strcmp(lines,"file-size-check")==0){
-                    //         isFileLarge(copy_s);
-                    //     }
-                    //     if (strcmp(lines,"format-check")==0){
-                    //         isFormatCorrect(entry->d_name);
-                    //     }
-                    // }
-                    checkFileTimes(copy_s);
-                    isFileLarge(copy_s);
-                    isFormatCorrect(entry->d_name);
-                    characters(copy_s);
-                    whitespace(copy_s);
-                    TODO(copy_s);
+                    while (fgets(lines,sizeof(lines),hello)!=NULL){
+                        lines[strcspn(lines,"\n")]='\0';
+                        if (strcmp(lines,"character-limit")==0){
+                            characters(copy_s);
+                        }
+                        if (strcmp(lines,"time-limit")==0){
+                         checkFileTimes(copy_s);
+                        }
+                        if (strcmp(lines,"file-size-check")==0){
+                            isFileLarge(copy_s);
+                        }
+                        if (strcmp(lines,"format-check")==0){
+                            isFormatCorrect(entry->d_name);
+                        }
+                        if (strcmp(lines,"todo-check")==0){
+                            TODO(copy_s);
+                        }
+                        if (strcmp(lines,"eof-blank-space")==0){
+                             whitespace(copy_s);
+                        }
+                    }
+                    // checkFileTimes(copy_s);
+                    // isFileLarge(copy_s);
+                    // isFormatCorrect(entry->d_name);
+                    // characters(copy_s);
+                    // whitespace(copy_s);
+                    // TODO(copy_s);
                 }
             }
 
@@ -4523,7 +4532,7 @@ int main()
             closedir(dir);
         }
 
-        else if (strncmp(command, "neogit pre-commit add hook", 28) == 0)
+        else if (strncmp(command, "neogit pre-commit add hook", 26) == 0)
         {
             char hook[100];
             search(command, hook);
@@ -4583,24 +4592,40 @@ int main()
             int can = token_del(res, command);
             for (int d = 0; d < can; d++)
             {
-
-                char *base = basename(res[d]);
-
                 if (fileExists(res[d]))
                 {
+                        char copy_hook[100];
+                        char *base = basename(res[d]);
+                    strcpy(copy_hook, currentDirectory);
+                    strcat(copy_hook, "\\\\hook.txt");
+                    FILE *hello = fopen(copy_hook, "r");
+                    char lines[100];
                     printf("%s\n", base);
-
-                    checkFileTimes(res[d]);
-                    isFileLarge(res[d]);
-                    isFormatCorrect(base);
-                    characters(res[d]);
-                    whitespace(res[d]);
-                    TODO(res[d]);
+                    while (fgets(lines,sizeof(lines),hello)!=NULL){
+                        lines[strcspn(lines,"\n")]='\0';
+                        if (strcmp(lines,"character-limit")==0){
+                            characters(res[d]);
+                        }
+                        if (strcmp(lines,"time-limit")==0){
+                         checkFileTimes(res[d]);
+                        }
+                        if (strcmp(lines,"file-size-check")==0){
+                            isFileLarge(res[d]);
+                        }
+                        if (strcmp(lines,"format-check")==0){
+                            isFormatCorrect(base);
+                        }
+                        if (strcmp(lines,"todo-check")==0){
+                            TODO(res[d]);
+                        }
+                        if (strcmp(lines,"eof-blank-space")==0){
+                             whitespace(res[d]);
+                        }
+                    }
                 }
                 else
                 {
                     printf("The path does not exist\n");
-
                     flag_error_for_not_exist = 1;
                 }
             }
