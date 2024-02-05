@@ -14,6 +14,11 @@
 #include <tchar.h>
 #define MAX_SENTENCES 100
 
+int fileExists(const char *filePath) // 
+{
+    return access(filePath, F_OK) == 0;
+}
+
 void removeSpaces(char *str)
 {
     int i, j;
@@ -273,6 +278,22 @@ void addBackslashes(char *str)
 
 void reset_for_directory(const char *filename, char *name)
 {
+    char currentDirectory[FILENAME_MAX];
+    char for_temp_for_dir[FILENAME_MAX];
+    char for_unstage_file[FILENAME_MAX];
+    char for_staging_file[FILENAME_MAX];
+    char for_t_txt[FILENAME_MAX];
+    _fullpath(currentDirectory, ".", FILENAME_MAX);
+    strcat(currentDirectory, "\\neogit");
+    strcpy(for_unstage_file, currentDirectory);
+    strcat(for_unstage_file, "\\\\unstage.txt");
+    strcpy(for_temp_for_dir, currentDirectory);
+    strcat(for_temp_for_dir, "\\\\temp_for_dir.txt");
+    strcpy(for_staging_file, currentDirectory);
+    strcat(for_staging_file, "\\\\staging.txt");
+    strcpy(for_t_txt, currentDirectory);
+    strcat(for_t_txt, "\\\\t.txt");
+
     struct stat path_stat_d;
     DIR *dir;
     char line_d[1000];
@@ -282,29 +303,29 @@ void reset_for_directory(const char *filename, char *name)
     if (file == NULL)
     {
         printf("Error: cannot open the staging file.\n");
-        return 1;
+        // return 1;
     }
-    FILE *temp_file = fopen("temp_for_dir.txt", "a");
+    FILE *temp_file = fopen(for_temp_for_dir, "a");
     if (temp_file == NULL)
     {
         printf("Error: cannot create a temporary file.\n");
         fclose(file);
-        return 1;
+       // return 1;
     }
-    FILE *unstaged = fopen("unstage.txt", "a");
+    FILE *unstaged = fopen(for_unstage_file, "a");
     if (unstaged == NULL)
     {
         printf("Error: cannot create unstaged file.\n");
         fclose(file);
         fclose(temp_file);
-        return 1;
+        // return 1;
     }
     fclose(file);
     fclose(temp_file);
     fclose(unstaged);
     file = fopen(filename, "r");
-    temp_file = fopen("temp_for_dir.txt", "a");
-    unstaged = fopen("unstage.txt", "a");
+    temp_file = fopen(for_temp_for_dir, "a");
+    unstaged = fopen(for_unstage_file, "a");
     // int match = 0;
     while ((entry = readdir(dir)) != NULL)
     {
@@ -321,9 +342,9 @@ void reset_for_directory(const char *filename, char *name)
     fclose(unstaged);
     closedir(dir);
     FILE *file1, *file2, *file3;
-    file1 = fopen("temp_for_dir.txt", "r");
-    file2 = fopen("staging.txt", "r");
-    unstaged = fopen("unstage.txt", "a");
+    file1 = fopen(for_temp_for_dir, "r");
+    file2 = fopen(for_staging_file, "r");
+    unstaged = fopen(for_unstage_file, "a");
     while (fgets(line1, sizeof(line1), file1) != NULL)
     {
         line1[strcspn(line1, "\n")] = '\0';
@@ -342,13 +363,12 @@ void reset_for_directory(const char *filename, char *name)
     fclose(file1);
     fclose(file2);
     fclose(unstaged);
-    // remove(file2);
-    remove("temp_for_dir.txt");
+    remove(for_temp_for_dir);
     fclose(file2);
     fclose(temp_file);
-    FILE *fp1 = fopen("staging.txt", "r");
-    FILE *fp2 = fopen("unstage.txt", "r");
-    FILE *temp = fopen("t.txt", "a");
+    FILE *fp1 = fopen(for_staging_file, "r");
+    FILE *fp2 = fopen(for_unstage_file, "r");
+    FILE *temp = fopen(for_t_txt, "a");
 
     char line11[100];
     char line12[100];
@@ -379,8 +399,8 @@ void reset_for_directory(const char *filename, char *name)
     fclose(fp1);
     fclose(fp2);
     fclose(temp);
-    remove("staging.txt");
-    rename("t.txt", "staging.txt");
+    remove(for_staging_file);
+    rename(for_t_txt, for_staging_file);
     fclose(temp);
     fclose(fp2);
 }
@@ -425,6 +445,7 @@ void searchWordInFile(char *filename, char *word, int saved[100])
             if (strcmp(token, word) == 0)
             {
                 saved[i] = line;
+                printf("%d",saved[i]);
                 i++;
             }
             token = strtok(NULL, " \t\n");
@@ -468,20 +489,25 @@ int searchWordInFile1(char *filename, char *word)
     return line;
 }
 
-void deleteTextFiles(char* directory) {
-    DIR* dir;
-    struct dirent* entry;
+void deleteTextFiles(char *directory) // for deleting text fiels of user and updating them.
+{
+    DIR *dir;
+    struct dirent *entry;
 
     dir = opendir(directory);
-    if (dir == NULL) {
+    if (dir == NULL)
+    {
         perror("Unable to open directory");
         exit(EXIT_FAILURE);
     }
 
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            char* filename = entry->d_name;
-            if (strstr(filename, ".txt") != NULL) {
+    while ((entry = readdir(dir)) != NULL)
+    {
+        if (strstr(entry->d_name, ".") != NULL) // noooooooot sure
+        {
+            char *filename = entry->d_name;
+            if (strstr(filename, ".txt") != NULL)
+            {
                 char filepath[256];
                 snprintf(filepath, sizeof(filepath), "%s/%s", directory, filename);
                 remove(filepath);
@@ -492,7 +518,8 @@ void deleteTextFiles(char* directory) {
     closedir(dir);
 }
 
-void tokenizeStrings(char* input, char** output, int* count) {
+void tokenizeStrings(char *input, char **output, int *count) // for time that we have more that one " "
+{
     int i = 0;
     int j = 0;
     int start = 0;
@@ -500,17 +527,22 @@ void tokenizeStrings(char* input, char** output, int* count) {
     int length = strlen(input);
     int inQuotes = 0;
 
-    while (i < length) {
-        if (input[i] == '"') {
-            if (inQuotes) {
+    while (i < length)
+    {
+        if (input[i] == '"')
+        {
+            if (inQuotes)
+            {
                 end = i;
                 int tokenLength = end - start - 1;
-                output[j] = (char*)malloc((tokenLength + 1) * sizeof(char));
+                output[j] = (char *)malloc((tokenLength + 1) * sizeof(char));
                 strncpy(output[j], input + start + 1, tokenLength);
                 output[j][tokenLength] = '\0';
                 j++;
                 inQuotes = 0;
-            } else {
+            }
+            else
+            {
                 start = i;
                 inQuotes = 1;
             }
@@ -521,66 +553,93 @@ void tokenizeStrings(char* input, char** output, int* count) {
     *count = j;
 }
 
-void isFormatCorrect(char* filename) {
+void isFormatCorrect(char *filename) // for pre commit - founding thye formats like pdf
+{
     int len = strlen(filename);
-    char* format = &filename[len-3];
-    if (strcmp(format, "txt") == 0) {
-         printf("\033[0;31m");
+    char *format = &filename[len - 3];
+    if (strcmp(format, "txt") == 0)
+    {
+        printf("\033[0;31m");
         printf("format-check................................................PASSED\n");
-    } else if (strcmp(format, "csv") == 0) {
-         printf("\033[0;31m");
+    }
+    else if (strcmp(format, "csv") == 0)
+    {
+        printf("\033[0;31m");
         printf("format-check................................................PASSED\n");
-    } else if (strcmp(format, "jpg") == 0) {
-         printf("\033[0;31m");
+    }
+    else if (strcmp(format, "jpg") == 0)
+    {
+        printf("\033[0;31m");
         printf("format-check................................................PASSED\n");
-    } else if (strcmp(format, "png") == 0) {
-         printf("\033[0;31m");
+    }
+    else if (strcmp(format, "png") == 0)
+    {
+        printf("\033[0;31m");
         printf("format-check................................................PASSED\n");
-    } else if (strcmp(format, "pdf") == 0) {
-         printf("\033[0;31m");
+    }
+    else if (strcmp(format, "pdf") == 0)
+    {
+        printf("\033[0;31m");
         printf("format-check................................................PASSED\n");
-    } else if (strcmp(format, "doc") == 0) {
-         printf("\033[0;31m");
+    }
+    else if (strcmp(format, "doc") == 0)
+    {
+        printf("\033[0;31m");
         printf("format-check................................................PASSED\n");
-    } else if (strcmp(format, "xls") == 0) {
-         printf("\033[0;31m");
+    }
+    else if (strcmp(format, "xls") == 0)
+    {
+        printf("\033[0;31m");
         printf("format-check................................................PASSED\n");
-    } else {
-         printf("\033[0;31m");
+    }
+    else
+    {
+        printf("\033[0;31m");
         printf("format-check................................................FAILED\n");
     }
 }
 
-void checkFileTimes(char* filename) {
+void checkFileTimes(char *filename) // for pre-commit finding the times.
+{
     struct stat fileStat;
-    char* base = basename(filename);
+    char *base = basename(filename);
     char extension[4];
     int len = strlen(base);
     strncpy(extension, base + len - 3, 3);
     extension[3] = '\0';
-if (stat(filename, &fileStat) == 0) {
-    time_t currentTime = time(NULL);
-    time_t fileModifiedTime = fileStat.st_mtime;
-    time_t timeDifference = currentTime - fileModifiedTime;
+    if (stat(filename, &fileStat) == 0)
+    {
+        time_t currentTime = time(NULL);
+        time_t fileModifiedTime = fileStat.st_mtime;
+        time_t timeDifference = currentTime - fileModifiedTime;
 
-    if (timeDifference > 600 && (strcmp(extension, "mp4") ==0 || strcmp(extension, "wav") == 0 || strcmp(extension, "mp3") ==0)) {
-        printf("\033[0;32m"); // Set color to green
-        printf("time-limit................................................PASSED\n");
-    } else if (strcmp(extension, "mp4") ==0 || strcmp(extension, "wav") == 0 || strcmp(extension, "mp3") ==0) {
-        printf("\033[0;32m"); // Set color to green
-        printf("time-limit................................................FAILED\n");
-    } else {
-        printf("\033[0;32m"); // Set color to green
-        printf("time-limit................................................SKIPPED\n");
+        if (timeDifference > 600 && (strcmp(extension, "mp4") == 0 || strcmp(extension, "wav") == 0 || strcmp(extension, "mp3") == 0))
+        {
+            printf("\033[0;32m"); // Set color to green
+            printf("time-limit................................................PASSED\n");
+        }
+        else if (strcmp(extension, "mp4") == 0 || strcmp(extension, "wav") == 0 || strcmp(extension, "mp3") == 0)
+        {
+            printf("\033[0;32m"); // Set color to green
+            printf("time-limit................................................FAILED\n");
+        }
+        else
+        {
+            printf("\033[0;32m"); // Set color to green
+            printf("time-limit................................................SKIPPED\n");
+        }
     }
-} else {
-    printf("Error occurred while checking file times.\n");
-}
+    else
+    {
+        printf("Error occurred while checking file times.\n");
+    }
 }
 
-void isFileLarge(char* filename) {
-    FILE* file = fopen(filename, "rb");
-    if (file == NULL) {
+void isFileLarge(char *filename) // for pre-commit finding the size of file.
+{
+    FILE *file = fopen(filename, "rb");
+    if (file == NULL)
+    {
         printf("Error opening file.\n");
     }
 
@@ -588,18 +647,22 @@ void isFileLarge(char* filename) {
     long fileSize = ftell(file);
     fclose(file);
 
-    if (fileSize > 5 * 1024 * 1024) {
-         printf("\033[0;34m"); // Set color to blue
-         printf("file-size-check................................................FAILED\n");
-    } else {
-         printf("\033[0;34m"); // Set color to blue
+    if (fileSize > 5 * 1024 * 1024)
+    {
+        printf("\033[0;34m"); // Set color to blue
+        printf("file-size-check................................................FAILED\n");
+    }
+    else
+    {
+        printf("\033[0;34m"); // Set color to blue
         printf("file-size-check................................................PASSED\n");
     }
 }
 
-void characters (char* filename){
-    char* base= basename(filename);
-     char extension[4];
+void characters(char *filename) // for pre-commit finding the characters more than 200000
+{
+    char *base = basename(filename);
+    char extension[4];
     int len = strlen(base);
     strncpy(extension, base + len - 3, 3);
     extension[3] = '\0';
@@ -608,7 +671,7 @@ void characters (char* filename){
     {
         char word[100];
         int count = 0;
-        
+
         while (fscanf(file, "%s", word) != EOF)
         {
             count++;
@@ -620,16 +683,105 @@ void characters (char* filename){
         }
         else
         {
-             printf("character-check................................................PASSED\n");
+            printf("character-check................................................PASSED\n");
         }
     }
     else
     {
-         printf("character-check................................................SKIPPED\n");
+        printf("character-check................................................SKIPPED\n");
     }
     fclose(file);
 }
 
+void whitespace(char *filename) // for pre-commit finding whitspces
+{
+    char *base = basename(filename);
+    char extension[5];
+    strncpy(extension, base + strlen(base) - 3, 3);
+    extension[3] = '\0';
+
+    if (strcmp(extension, "txt") == 0 || strcmp(extension, "cpp") == 0 || strcmp(extension, "c") == 0)
+    {
+        FILE *file = fopen(filename, "r");
+        if (file == NULL)
+        {
+            printf("File not found.\n");
+            // return 1;
+        }
+
+        fseek(file, 0, SEEK_END);
+        long size = ftell(file);
+        fseek(file, -1, SEEK_END);
+        int lastChar = fgetc(file);
+
+        if (lastChar == ' ' || lastChar == '\n')
+        { // fail
+            printf("\033[0;32m");
+            printf("eof_blank_space................................................FAILED\n");
+        }
+        else
+        {
+            printf("\033[0;32m");
+            printf("eof_blank_space................................................PASSED\n");
+        }
+
+        fclose(file);
+    }
+    else
+    {
+        printf("\033[0;32m");
+        printf("eof_blank_space................................................SKIPPED\n");
+    }
+}
+
+void TODO(char *file_name)
+{
+    char *base = basename(file_name);
+    FILE *file = fopen(file_name, "r");
+    const char *extension = strrchr(base, '.');
+    int flag_for_com = 1;
+    if (strcmp(extension, ".c") == 0 || strcmp(extension, ".cpp") == 0)
+    {
+        char line[256];
+        while (fgets(line, sizeof(line), file))
+        {
+            line[strcspn(line, "\n")] = '\0';
+            if (strstr(line, "//TODO") || strcmp(line, "//TODO") == 0)
+            {
+                printf("todo_check................................................FAILED\n");
+                flag_for_com = 0;
+                break;
+            }
+        }
+        if (flag_for_com == 1)
+        {
+            printf("todo_check................................................PASSED\n");
+        }
+    }
+    if (strcmp(extension, ".txt") == 0)
+    {
+        char line1[256];
+        while (fgets(line1, sizeof(line1), file))
+        {
+            line1[strcspn(line1, "\n")] = '\0';
+            if (strstr(line1, "TODO") || strcmp(line1, "TODO") == 0)
+            {
+                printf("todo_check................................................FAILED\n");
+                flag_for_com = 0;
+                break;
+            }
+        }
+        if (flag_for_com == 1)
+        {
+            printf("todo_check................................................PASSED\n");
+        }
+    }
+    else
+    {
+        printf("todo_check................................................SKIPPED\n");
+    }
+    fclose(file);
+}
 
 int main()
 {
@@ -639,9 +791,9 @@ int main()
     char main_copy_of_exe_path_of_code[FILENAME_MAX];
     char cop_for_status[FILENAME_MAX];
     _fullpath(currentDirectory, ".", FILENAME_MAX);
-    strcpy(main_copy_of_exe_path_of_code, currentDirectory); // attention this is the way i have code's exe
+    strcpy(main_copy_of_exe_path_of_code, currentDirectory); // attention this is the way i have code's exe and area of user.
 
-    strcat(currentDirectory, "\\neogit");                    // way of neogit (where i make files to manage my neogit)
+    strcat(currentDirectory, "\\neogit"); // way of neogit (where i make files to manage my neogit)
     addBackslashes(currentDirectory);
     strcpy(copy_cur_for_master, currentDirectory);
     strcpy(copy_currentDirectory, currentDirectory);
@@ -685,9 +837,9 @@ int main()
     FILE *staging = fopen(copy_staging, "a");
     fclose(staging);
     char copy_head[100];
-    strcpy(copy_head,currentDirectory);
-    strcat(copy_head,"\\\\head.txt");
-    FILE* head = fopen(copy_head,"a");
+    strcpy(copy_head, currentDirectory);
+    strcat(copy_head, "\\\\head.txt");
+    FILE *head = fopen(copy_head, "a");
     fclose(head);
     char copy_unstage[100];
     strcpy(copy_unstage, currentDirectory);
@@ -724,7 +876,7 @@ int main()
     DIR *dir_1;
     struct dirent *entry_1;
     // Open the directory
-    dir_1 = opendir(copy_one_cu);
+    dir_1 = opendir(copy_one_cu); // user area - status
     // Read each entry in the directory
     while ((entry_1 = readdir(dir_1)) != NULL)
     {
@@ -739,15 +891,15 @@ int main()
     struct stat filestat;
     time_t lastModifiedTime[256];
 
-    for (int i = 0; i < countt; i++)
+    for (int i = 0; i < countt; i++) // for status and copying.
     {
         snprintf(file_address[i], sizeof(file_address[i]), "%s\\%s", copy_one_cu, first_name_cond[i]); // making address.
         stat(file_address[i], &filestat);
         lastModifiedTime[i] = filestat.st_mtime;
     }
     char temp_f[100];
-    strcpy(temp_f,currentDirectory);
-    strcat(temp_f,"\\\\temp_f.txt");
+    strcpy(temp_f, currentDirectory);
+    strcat(temp_f, "\\\\temp_f.txt");
     char copy10[100];
     strcpy(copy10, currentDirectory);
     strcat(copy10, "\\branch");
@@ -779,6 +931,7 @@ int main()
     char copy_commi[100];
     strcpy(copy_commi, currentDirectory);
     strcat(copy_commi, "\\commit");
+    if (access(currentDirectory,F_OK)!=-1) {
     if (access(copy_master, F_OK) == -1)
     {
         mkdir(copy_master);
@@ -786,24 +939,33 @@ int main()
         sprintf(dastor22, "move %s %s", copy_master, copy10);
         system(dastor22);
     }
+    }
+    
     while (1)
     {
         gets(command);
 
         if (strncmp(command, "neogit init", 11) == 0)
         {
-            DIR *dir = opendir(".");
+            DIR *dir = opendir("."); // . is working directory.
             int flag = 0;
             char tmp_cwd[2000];
             char cwd[2000];
             bool exists = false;
+            char command[1000];
+                    char hey[] = "neogit";
+                    sprintf(command, "dir \"/%s\" /s", hey);
+                    if(system(command)){
+                    printf("neogit has been already exists in other folders.");
+                    continue;
+                }
             if (dir)
             {
                 struct dirent *entry;
                 while ((entry = readdir(dir)) != NULL)
                 {
                     if (strcmp(entry->d_name, "neogit") == 0)
-                    {
+                    {   
                         printf("The directory 'neogit' exists in the root folder.\n");
                         flag = 1;
                         exists = true;
@@ -812,6 +974,7 @@ int main()
                 }
                 if (flag == 0)
                 {
+
                     system("mkdir neogit");
                     printf("the intilization has been done succesfully");
                     continue;
@@ -822,6 +985,7 @@ int main()
                 if (getcwd(tmp_cwd, sizeof(tmp_cwd)) == NULL)
                     continue;
             }
+            // checking that the directory has been made or not.
             if (strcmp(tmp_cwd, "/") != 0)
             {
                 if (chdir("..") != 0)
@@ -942,7 +1106,7 @@ int main()
                     DIR *dir;
                     struct dirent *entry;
 
-                    char *path_temp = basename(path);
+                    
 
                     // Open the directory
                     dir = opendir(path);
@@ -958,7 +1122,7 @@ int main()
                             char *dir_name = basename(entry->d_name);
                             staging = fopen(copy_staging, "r");
                             if (staging == NULL)
-                                printf("something wrong happend. plaese try again...\n"); // for sure.
+                            printf("something wrong happend. plaese try again...\n"); // for sure.
                             int len = strlen(dir_name);
                             dir_name[len] = '\0';
                             char line[100];
@@ -982,6 +1146,7 @@ int main()
                     if (found_2 == 1)
                     {
                         printf("this directory has been already on stage mood.");
+                        continue;
                     }
                     else
                     {
@@ -991,12 +1156,15 @@ int main()
                         strcpy(copy_path, path);
                         strcat(copy1, "\\staging");
                         copyFolder(path, copy1);
-                        staging = fopen(copy_staging, "a");
-                        fprintf(staging, "%s\n", path_temp);
-                        fclose(staging);
                         printf("your directory is on stage mood now.");
+                        char *path_temp = basename(path);
+                        staging = fopen(copy_staging,"a");
+                        fprintf(staging,"%s\n",path_temp);
+                        fclose(staging);
                     }
+                   
                 }
+               
                 else
                 {
                     // first we check that we have this address in our file or not.
@@ -1131,6 +1299,7 @@ int main()
                         fprintf(staging, "%s\n", temp1);
                         fclose(staging);
                         printf("This directory is now in stage mood!\n");
+                        
                     }
                 }
                 else if (strstr(names_of_files[i], ".") != NULL)
@@ -1293,7 +1462,7 @@ int main()
                             sprintf(dastor, "copy %s %s", name[d], copy1);
                             system(dastor);
                             char *temp_dir = basename(name[d]);
-                            staging = fopen(copy_fstaging, "a");
+                            staging = fopen(copy_staging, "a");
                             fprintf(staging, "%s\n", temp_dir);
                             fclose(staging);
                         }
@@ -1452,7 +1621,7 @@ int main()
             }
         }
 
-        else if (strncmp(command, "neogit reset -redo", 16) == 0)
+        else if (strcmp(command, "neogit add -redo") == 0)
         {
             mkdir(copy_fstaging);
             char dest[100];
@@ -1533,7 +1702,6 @@ int main()
                 printf("Error opening directory\n");
                 continue;
             }
-
             while ((entry = readdir(dir)) != NULL)
             {
                 if (entry->d_name[0] == '.')
@@ -1884,7 +2052,7 @@ int main()
                         index++;
                         ptr = strtok(NULL, delimeter);
                     }
-                    int len = strlen(commit_message);
+                    int len = strlen(extract[index-1]);
                     if (strcmp(extract[index - 1], "-m") == 0)
                     {
                         printf("please enter a message.");
@@ -2438,8 +2606,8 @@ int main()
                     {
                         char commit_message[1000];
                         strcpy(commit_message, extract_1[index_1 - 1]);
-                        int len = strlen(extract_1[index_1 - 1]);
-                        if (strcmp(extract_1[index_1 - 1], "-m") == 0)
+                        int len = strlen(commit_message);
+                        if (strcmp(extract_1[index_1-1], "-m") == 0)
                         {
                             printf("please enter a message.");
                             continue;
@@ -3019,11 +3187,10 @@ int main()
             int index = 0;
             char delimeter[] = " ";
             FILE *temp_log = fopen(temp_loog, "r");
-
             while (fgets(line3, sizeof(line3), temp_log) != NULL)
             {
                 line_c++;
-                if (line_c % 7 == 3)
+                if (line_c % 7 == 2)
                 {
                     char *ptr = strtok(line3, delimeter);
                     while (ptr != NULL)
@@ -3034,7 +3201,7 @@ int main()
                     }
                     if (compareTimes(extract[index - 2], time))
                     {
-                        printf("%s %s %s\n", extract[index - 4], extract[index - 3], extract[index - 2]);
+                        printf("%s - %s - %s\n", extract[index - 4], extract[index - 3], extract[index - 2]);
                     }
                 }
             }
@@ -3055,7 +3222,7 @@ int main()
             while (fgets(line3, sizeof(line3), temp_log) != NULL)
             {
                 line_c++;
-                if (line_c % 7 == 3)
+                if (line_c % 7 == 2)
                 {
                     char *ptr = strtok(line3, delimeter);
                     while (ptr != NULL)
@@ -3066,13 +3233,13 @@ int main()
                     }
                     if (compareTimes2(extract[index - 2], time))
                     {
-                        printf("%s %s %s\n", extract[index - 4], extract[index - 3], extract[index - 2]);
+                        printf("%s - %s - %s\n", extract[index - 4], extract[index - 3], extract[index - 2]);
                     }
                 }
             }
         }
 
-        else if (strcmp("neogit branch", command) == 0)
+        else if (strcmp("neogit list branch", command) == 0)
         {
             char line[100];
             branch = fopen(copy_branch, "r");
@@ -3088,273 +3255,284 @@ int main()
             char branch_name[100];
             search(command, branch_name);
             mkdir(copy10);
-            FILE* ch = fopen(copy_branch,"r");
+            FILE *ch = fopen(copy_branch, "r");
             char line0[100];
-            int flag_branch =0;
-            while(fgets(line0,sizeof(line0),ch)!=NULL){
-                line0[strcspn(line0,"\n")]='\0';
-                if (strcmp(line0,branch_name)==0)
+            int flag_branch = 0;
+            while (fgets(line0, sizeof(line0), ch) != NULL)
+            {
+                line0[strcspn(line0, "\n")] = '\0';
+                if (strcmp(line0, branch_name) == 0)
                 {
-                    flag_branch =1;
+                    flag_branch = 1;
                     break;
                 }
             }
             fclose(ch);
-            if (flag_branch==0){
-            char plo[100];
-            strcpy(plo, currentDirectory);
-            strcat(plo,"\\");
-            strcat(plo,branch_name);
-            mkdir(plo);
-            FILE *branch = fopen(copy_branch, "a");
-            fprintf(branch, "%s\n", branch_name);
-            fclose(branch);
-            FILE *m = fopen(messsage, "r");
-            char line_m[100];
-            int line_counter = 0;
-            // while counts 1 more line wo we started from 0.
-            while (fgets(line_m, sizeof(line_m), m) != NULL)
+            if (flag_branch == 0)
             {
-                line_counter++;
-            }
-            fclose(m);
-            FILE *log = fopen(temp_loog, "r");
-            char line_t[100];
-            int counter_t = 1;
-            int num;
-            while (fgets(line_t, sizeof(line_t), log) != NULL)
-            {
-
-                if (counter_t == 3)
+                char plo[100];
+                strcpy(plo, currentDirectory);
+                strcat(plo, "\\");
+                strcat(plo, branch_name);
+                mkdir(plo);
+                FILE *branch = fopen(copy_branch, "a");
+                fprintf(branch, "%s\n", branch_name);
+                fclose(branch);
+                FILE *m = fopen(messsage, "r");
+                char line_m[100];
+                int line_counter = 0;
+                // while counts 1 more line wo we started from 0.
+                while (fgets(line_m, sizeof(line_m), m) != NULL)
                 {
-                    char *number;
-                    number = strtok(line_t, ":");
-                    number = strtok(NULL, " ");
-                    num = atoi(number);
-                    break;
+                    line_counter++;
                 }
-                counter_t++;
-            }
-            m = fopen(messsage, "r");
-            FILE *temp = fopen(temp_b, "w");
-            char line9[100];
-            int co_temp = 1;
-            int sum = line_counter - (7 * num);
-            for (int i = 1; i <= num; i++)
-            {
-                sum = sum + 7;
-                while (fgets(line9, sizeof(line9), m) != NULL)
+                fclose(m);
+                FILE *log = fopen(temp_loog, "r");
+                char line_t[100];
+                int counter_t = 1;
+                int num;
+                while (fgets(line_t, sizeof(line_t), log) != NULL)
                 {
-                    if (co_temp == sum)
+
+                    if (counter_t == 3)
                     {
-                        fprintf(temp, "branch : %s\n", branch_name);
-                        co_temp++;
+                        char *number;
+                        number = strtok(line_t, ":");
+                        number = strtok(NULL, " ");
+                        num = atoi(number);
                         break;
                     }
-                    else
-                    {
-                        fprintf(temp, "%s", line9);
-                    }
-                    co_temp++;
+                    counter_t++;
                 }
-            }
-
-            fclose(temp);
-            fclose(m);
-
-            remove(messsage);
-            rename(temp_b, messsage);
-            fclose(temp);
-            m = fopen(messsage, "r");
-            ReverseFile(m);
-            fclose(m);
-            DIR *dir;
-             char copy_c[100];
-            strcpy(copy_c, currentDirectory);
-            strcat(copy_c, "\\commit");
-            char copy_com[100];
-            strcpy(copy_com,copy_c);
-            strcat(copy_com,"\\*");
-            struct dirent *entry;
-            struct stat fileStat;
-            WIN32_FIND_DATA findFileData;
-    HANDLE hFind = FindFirstFile(_T(copy_com), &findFileData);
-
-    if (hFind == INVALID_HANDLE_VALUE) {
-        _tprintf(_T("Error opening directory\n"));
-        return 1;
-    }
-
-    FILETIME latestTime = findFileData.ftCreationTime;
-    TCHAR latestFolder[MAX_PATH];
-    _tcscpy(latestFolder, findFileData.cFileName);
-
-    while (FindNextFile(hFind, &findFileData) != 0) {
-        if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (CompareFileTime(&findFileData.ftCreationTime, &latestTime) > 0) {
-                latestTime = findFileData.ftCreationTime;
-                _tcscpy(latestFolder, findFileData.cFileName);
-            }
-        }
-    }
-
-    FindClose(hFind);
-
-    _tprintf(_T("Latest folder: %s\n"), latestFolder);
-            strcat(copy_c, "\\");
-            strcat(copy_c, latestFolder); 
-            char b[100];
-            char dost[100];
-            char comm[100];
-            strcpy(b, currentDirectory);
-            strcat(b, "\\");
-            strcat(b, branch_name);
-            sprintf(dost, "copy %s %s", copy_c, b);
-            system(dost);
-            char addres_main_branch[100];
-            strcpy(addres_main_branch, currentDirectory);
-            strcat(addres_main_branch, "\\branch");
-            sprintf(comm, "move /Y \"%s\" \"%s\"", b, addres_main_branch);
-            system(comm);
-            head = fopen(copy_head,"a");
-            fprintf(head,"%s\n",branch_name);
-            fprintf(head,"%s\n",latestFolder);
-            fclose(head);
-            }
-
-            else {
-            char plo[100];
-            strcpy(plo, currentDirectory);
-            strcat(plo,"\\");
-            strcat(plo,branch_name);
-            FILE *branch = fopen(copy_branch, "a");
-            fprintf(branch, "%s\n", branch_name);
-            fclose(branch);
-            FILE *m = fopen(messsage, "r");
-            char line_m[100];
-            int line_counter = 0;
-            // while counts 1 more line wo we started from 0.
-            while (fgets(line_m, sizeof(line_m), m) != NULL)
-            {
-                line_counter++;
-            }
-            fclose(m);
-            FILE *log = fopen(temp_loog, "r");
-            char line_t[100];
-            int counter_t = 1;
-            int num;
-            while (fgets(line_t, sizeof(line_t), log) != NULL)
-            {
-
-                if (counter_t == 3)
+                m = fopen(messsage, "r");
+                FILE *temp = fopen(temp_b, "w");
+                char line9[100];
+                int co_temp = 1;
+                int sum = line_counter - (7 * num);
+                for (int i = 1; i <= num; i++)
                 {
-                    char *number;
-                    number = strtok(line_t, ":");
-                    number = strtok(NULL, " ");
-                    num = atoi(number);
-                    break;
-                }
-                counter_t++;
-            }
-            m = fopen(messsage, "r");
-            FILE *temp = fopen(temp_b, "w");
-            char line9[100];
-            int co_temp = 1;
-            int sum = line_counter - (7 * num);
-            for (int i = 1; i <= num; i++)
-            {
-                sum = sum + 7;
-                while (fgets(line9, sizeof(line9), m) != NULL)
-                {
-                    if (co_temp == sum)
+                    sum = sum + 7;
+                    while (fgets(line9, sizeof(line9), m) != NULL)
                     {
-                        fprintf(temp, "branch : %s\n", branch_name);
+                        if (co_temp == sum)
+                        {
+                            fprintf(temp, "branch : %s\n", branch_name);
+                            co_temp++;
+                            break;
+                        }
+                        else
+                        {
+                            fprintf(temp, "%s", line9);
+                        }
                         co_temp++;
+                    }
+                }
+
+                fclose(temp);
+                fclose(m);
+
+                remove(messsage);
+                rename(temp_b, messsage);
+                fclose(temp);
+                m = fopen(messsage, "r");
+                ReverseFile(m);
+                fclose(m);
+                DIR *dir;
+                char copy_c[100];
+                strcpy(copy_c, currentDirectory);
+                strcat(copy_c, "\\commit");
+                char copy_com[100];
+                strcpy(copy_com, copy_c);
+                strcat(copy_com, "\\*");
+                struct dirent *entry;
+                struct stat fileStat;
+                WIN32_FIND_DATA findFileData;
+                HANDLE hFind = FindFirstFile(_T(copy_com), &findFileData);
+
+                if (hFind == INVALID_HANDLE_VALUE)
+                {
+                    _tprintf(_T("Error opening directory\n"));
+                    return 1;
+                }
+
+                FILETIME latestTime = findFileData.ftCreationTime;
+                TCHAR latestFolder[MAX_PATH];
+                _tcscpy(latestFolder, findFileData.cFileName);
+
+                while (FindNextFile(hFind, &findFileData) != 0)
+                {
+                    if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                    {
+                        if (CompareFileTime(&findFileData.ftCreationTime, &latestTime) > 0)
+                        {
+                            latestTime = findFileData.ftCreationTime;
+                            _tcscpy(latestFolder, findFileData.cFileName);
+                        }
+                    }
+                }
+
+                FindClose(hFind);
+
+                _tprintf(_T("Latest folder: %s\n"), latestFolder);
+                strcat(copy_c, "\\");
+                strcat(copy_c, latestFolder);
+                char b[100];
+                char dost[100];
+                char comm[100];
+                strcpy(b, currentDirectory);
+                strcat(b, "\\");
+                strcat(b, branch_name);
+                sprintf(dost, "copy %s %s", copy_c, b);
+                system(dost);
+                char addres_main_branch[100];
+                strcpy(addres_main_branch, currentDirectory);
+                strcat(addres_main_branch, "\\branch");
+                sprintf(comm, "move /Y \"%s\" \"%s\"", b, addres_main_branch);
+                system(comm);
+                head = fopen(copy_head, "a");
+                fprintf(head, "%s\n", branch_name);
+                fprintf(head, "%s\n", latestFolder);
+                fclose(head);
+            }
+
+            else
+            {
+                char plo[100];
+                strcpy(plo, currentDirectory);
+                strcat(plo, "\\");
+                strcat(plo, branch_name);
+                FILE *branch = fopen(copy_branch, "a");
+                fprintf(branch, "%s\n", branch_name);
+                fclose(branch);
+                FILE *m = fopen(messsage, "r");
+                char line_m[100];
+                int line_counter = 0;
+                // while counts 1 more line wo we started from 0.
+                while (fgets(line_m, sizeof(line_m), m) != NULL)
+                {
+                    line_counter++;
+                }
+                fclose(m);
+                FILE *log = fopen(temp_loog, "r");
+                char line_t[100];
+                int counter_t = 1;
+                int num;
+                while (fgets(line_t, sizeof(line_t), log) != NULL)
+                {
+
+                    if (counter_t == 3)
+                    {
+                        char *number;
+                        number = strtok(line_t, ":");
+                        number = strtok(NULL, " ");
+                        num = atoi(number);
                         break;
                     }
-                    else
-                    {
-                        fprintf(temp, "%s", line9);
-                    }
-                    co_temp++;
+                    counter_t++;
                 }
-            }
+                m = fopen(messsage, "r");
+                FILE *temp = fopen(temp_b, "w");
+                char line9[100];
+                int co_temp = 1;
+                int sum = line_counter - (7 * num);
+                for (int i = 1; i <= num; i++)
+                {
+                    sum = sum + 7;
+                    while (fgets(line9, sizeof(line9), m) != NULL)
+                    {
+                        if (co_temp == sum)
+                        {
+                            fprintf(temp, "branch : %s\n", branch_name);
+                            co_temp++;
+                            break;
+                        }
+                        else
+                        {
+                            fprintf(temp, "%s", line9);
+                        }
+                        co_temp++;
+                    }
+                }
 
-            fclose(temp);
-            fclose(m);
+                fclose(temp);
+                fclose(m);
 
-            remove(messsage);
-            rename(temp_b, messsage);
-            fclose(temp);
-            m = fopen(messsage, "r");
-            ReverseFile(m);
-            fclose(m);
-            DIR *dir;
-             char copy_c[100];
-            strcpy(copy_c, currentDirectory);
-            strcat(copy_c, "\\commit"); // "F:\GitHub\FOP-Project-Git\output\neogit\commit"
-            char copy_com[100];
-            strcpy(copy_com,copy_c);
-            strcat(copy_com,"\\*");
-            struct dirent *entry;
-            struct stat fileStat;
-            WIN32_FIND_DATA findFileData;
-    HANDLE hFind = FindFirstFile(_T(copy_com), &findFileData);
+                remove(messsage);
+                rename(temp_b, messsage);
+                fclose(temp);
+                m = fopen(messsage, "r");
+                ReverseFile(m);
+                fclose(m);
+                DIR *dir;
+                char copy_c[100];
+                strcpy(copy_c, currentDirectory);
+                strcat(copy_c, "\\commit"); // "F:\GitHub\FOP-Project-Git\output\neogit\commit"
+                char copy_com[100];
+                strcpy(copy_com, copy_c);
+                strcat(copy_com, "\\*");
+                struct dirent *entry;
+                struct stat fileStat;
+                WIN32_FIND_DATA findFileData;
+                HANDLE hFind = FindFirstFile(_T(copy_com), &findFileData);
 
-    if (hFind == INVALID_HANDLE_VALUE) {
-        _tprintf(_T("Error opening directory\n"));
-        return 1;
-    }
+                if (hFind == INVALID_HANDLE_VALUE)
+                {
+                    _tprintf(_T("Error opening directory\n"));
+                    return 1;
+                }
 
-    FILETIME latestTime = findFileData.ftCreationTime;
-    TCHAR latestFolder[MAX_PATH];
-    _tcscpy(latestFolder, findFileData.cFileName);
-
-     while (FindNextFile(hFind, &findFileData) != 0) {
-        if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (CompareFileTime(&findFileData.ftCreationTime, &latestTime) > 0) {
-                latestTime = findFileData.ftCreationTime;
+                FILETIME latestTime = findFileData.ftCreationTime;
+                TCHAR latestFolder[MAX_PATH];
                 _tcscpy(latestFolder, findFileData.cFileName);
-            }
-        }
-    }
 
-    FindClose(hFind);
+                while (FindNextFile(hFind, &findFileData) != 0)
+                {
+                    if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                    {
+                        if (CompareFileTime(&findFileData.ftCreationTime, &latestTime) > 0)
+                        {
+                            latestTime = findFileData.ftCreationTime;
+                            _tcscpy(latestFolder, findFileData.cFileName);
+                        }
+                    }
+                }
 
-    _tprintf(_T("Latest folder: %s\n"), latestFolder);
-            strcat(copy_c, "\\");
-            strcat(copy_c, latestFolder); 
-            char b[100];
-            char dost[100];
-            strcpy(b, currentDirectory);
-            strcat(b, "\\branch\\");
-            strcat(b, branch_name);
-            sprintf(dost, "copy %s %s", copy_c, b);
-            system(dost);
-            // char line_s[100];
-            // FILE* head_t = fopen(copy_head,"a");
-            // FILE* fptr = fopen(temp_f,"w");
-            // int ch =0;
-            // int line=1;
-            // while (fgets(line_s, sizeof(line_s), head_t) != NULL){
-            //     line_s[strcspn(line_s,"\n")]='\0';
-            //     if (strcmp(line_s,branch_name)==0){
-            //         ch = line+1;
-            //     }
-            //     if (line==ch){
-            //         fprintf(fptr,"%s\n",latestFolder);
-            //     }
-            //     else {
-            //         fprintf(fptr,"%s",line_s);
-            //     }
-            //     line++;
-            // }
-           
-            // fclose(head_t);
-            // fclose(fptr);
-            // remove(copy_head);
-            // rename (temp_f,copy_head);
-            // fclose(fptr);
+                FindClose(hFind);
+
+                _tprintf(_T("Latest folder: %s\n"), latestFolder);
+                strcat(copy_c, "\\");
+                strcat(copy_c, latestFolder);
+                char b[100];
+                char dost[100];
+                strcpy(b, currentDirectory);
+                strcat(b, "\\branch\\");
+                strcat(b, branch_name);
+                sprintf(dost, "copy %s %s", copy_c, b);
+                system(dost);
+                // char line_s[100];
+                // FILE* head_t = fopen(copy_head,"a");
+                // FILE* fptr = fopen(temp_f,"w");
+                // int ch =0;
+                // int line=1;
+                // while (fgets(line_s, sizeof(line_s), head_t) != NULL){
+                //     line_s[strcspn(line_s,"\n")]='\0';
+                //     if (strcmp(line_s,branch_name)==0){
+                //         ch = line+1;
+                //     }
+                //     if (line==ch){
+                //         fprintf(fptr,"%s\n",latestFolder);
+                //     }
+                //     else {
+                //         fprintf(fptr,"%s",line_s);
+                //     }
+                //     line++;
+                // }
+
+                // fclose(head_t);
+                // fclose(fptr);
+                // remove(copy_head);
+                // rename (temp_f,copy_head);
+                // fclose(fptr);
             }
         }
 
@@ -3385,30 +3563,35 @@ int main()
             char line1[100];
             int log = 1;
             int flag2 = 0;
-            int num = 6;
-            //  int line_counter
+           // int cou =0;
             while (fgets(line1, sizeof(line1), temp_log) != NULL)
             {
 
-                if (log % 7 == 2)
+                if (log % 7 == 1)
                 {
                     flag2 = 0;
                     char *token;
-                    char *line_copy;
-                    strcpy(line_copy, line1);
+                    char* line_copy=(char*)malloc(100*sizeof(char));
+                    strcpy(line_copy,line1);
                     token = strtok(line_copy, ":");
                     token = strtok(NULL, " ");
-                    token[strlen(token) - 1] = '\0';
+                    token[strcspn(token,"\n\r")] = '\0';
+                    branch_name[strcspn(branch_name,"\n\r")]='\0';
                     if (strcmp(token, branch_name) == 0)
                     {
+                        // printf("%d",log);
                         flag2 = 1;
                     }
                 }
                 if (flag2 == 1)
                 {
                     printf("%s", line1);
+                   // cou++;
                 }
-
+                // if (cou==7){
+                //     cou=0;
+                //     flag2=0;
+                // }
                 log++;
             }
 
@@ -3420,7 +3603,7 @@ int main()
             char hint[100];
             search(command, hint);
             int saver[100];
-            char *file_name = "temp_log.txt";
+            char *file_name = temp_loog;
             searchWordInFile(file_name, hint, saver);
             FILE *log = fopen(temp_loog, "r");
             char line[100];
@@ -3438,7 +3621,6 @@ int main()
                 if (flag == 1 && c <= 7)
                 {
                     c++;
-                    printf("%s", line);
                 }
                 if (flag == 1 && c > 7)
                 {
@@ -3450,7 +3632,7 @@ int main()
             fclose(log);
         }
 
-        else if (strncmp("neogit checkout", command, 15) == 0 && strncmp("neogit checkout -id", command, 17) != 0 && strcmp("neogit checkout HEAD",command)!=0)
+        else if (strncmp("neogit checkout", command, 15) == 0 && strncmp("neogit checkout -id", command, 17) != 0 && strcmp("neogit checkout HEAD", command) != 0)
         {
             char branch_name[100];
             search(command, branch_name);
@@ -3473,883 +3655,1087 @@ int main()
             }
             fclose(branch);
             char copy_un[100];
-            strcpy(copy_un,currentDirectory);
-            strcat(copy_un,"\\unstage");
+            strcpy(copy_un, currentDirectory);
+            strcat(copy_un, "\\unstage");
             struct stat st;
-            if (access(copy_un,F_OK)==-1 || st.st_size == 0){
-                
-                char copy_s [100];
-                strcpy(copy_s,currentDirectory);
-                strcat (copy_s,"\\branch\\");
-                strcat(copy_s,branch_name);
-                if (access(copy_s,F_OK)==-1) printf("we dont have such a directory.");
-                else {
-                    char came [100];
+            if (access(copy_un, F_OK) == -1 || st.st_size == 0)
+            {
+
+                char copy_s[100];
+                strcpy(copy_s, currentDirectory);
+                strcat(copy_s, "\\branch\\");
+                strcat(copy_s, branch_name);
+                if (access(copy_s, F_OK) == -1)
+                    printf("we dont have such a directory.");
+                else
+                {
+                    char came[100];
                     deleteTextFiles(main_copy_of_exe_path_of_code);
                     sprintf(came, "copy %s %s", copy_s, main_copy_of_exe_path_of_code);
-                    system(came);                    
+                    system(came);
                 }
-
             }
-            else {
+            else
+            {
                 printf("you cant checkout because you have unstaged files.");
             }
-           
         }
 
-        else if (strncmp("neogit checkout -id", command, 17) == 0 && strcmp("neogit checkout HEAD",command)!=0)
+        else if (strncmp("neogit checkout -id", command, 17) == 0 && strcmp("neogit checkout HEAD", command) != 0)
         {
             char id[100];
-            search(command,id);
+            search(command, id);
             char copy_un[100];
-            strcpy(copy_un,currentDirectory);
-            strcat(copy_un,"\\unstage");
+            strcpy(copy_un, currentDirectory);
+            strcat(copy_un, "\\unstage");
             struct stat st;
-            if (access(copy_un,F_OK)==-1 || st.st_size == 0){
-                
-                char copy_s [100];
-                strcpy(copy_s,currentDirectory);
-                strcat (copy_s,"\\commit\\");
-                strcat(copy_s,id);
-                if (access(copy_s,F_OK)==-1) printf("we dont have such a directory.");
-                else {
-                    char came [100];
+            if (access(copy_un, F_OK) == -1 || st.st_size == 0)
+            {
+
+                char copy_s[100];
+                strcpy(copy_s, currentDirectory);
+                strcat(copy_s, "\\commit\\");
+                strcat(copy_s, id);
+                if (access(copy_s, F_OK) == -1)
+                    printf("we dont have such a directory.");
+                else
+                {
+                    char came[100];
                     deleteTextFiles(main_copy_of_exe_path_of_code);
                     sprintf(came, "copy %s %s", copy_s, main_copy_of_exe_path_of_code);
-                    system(came);                    
+                    system(came);
                 }
-
             }
-            else {
+            else
+            {
                 printf("you cant checkout because you have unstaged files.");
             }
         }
 
-        else if (strcmp("neogit checkout HEAD",command)==0){
+        else if (strcmp("neogit checkout HEAD", command) == 0)
+        {
             char line[100];
-            FILE* f = fopen(copy_head,"r");
-            while(fgets(line,sizeof(line),f)!=NULL){
-                printf("%s",line);
+            FILE *f = fopen(copy_head, "r");
+            while (fgets(line, sizeof(line), f) != NULL)
+            {
+                printf("%s", line);
             }
         }
 
         // fashe 2
         // wm = without message
-        else if (strncmp(command,"neogit revert whm",17)==0){
-            char id [100];
-            search(command,id);
+        else if (strncmp(command, "neogit revert whm", 17) == 0)
+        {
+            char id[100];
+            search(command, id);
             char copy_un[100];
-            strcpy(copy_un,currentDirectory);
-            strcat(copy_un,"\\unstage");
+            strcpy(copy_un, currentDirectory);
+            strcat(copy_un, "\\unstage");
             struct stat st;
-            if (access(copy_un,F_OK)==-1 || st.st_size == 0){
-                
-                char copy_s [100];
-                strcpy(copy_s,currentDirectory);
-                strcat (copy_s,"\\commit\\");
-                strcat(copy_s,id);
-                if (access(copy_s,F_OK)==-1) { printf("we dont have such a directory."); }
-                else {
-                    char came [100];
+            if (access(copy_un, F_OK) == -1 || st.st_size == 0)
+            {
+
+                char copy_s[100];
+                strcpy(copy_s, currentDirectory);
+                strcat(copy_s, "\\commit\\");
+                strcat(copy_s, id);
+                if (access(copy_s, F_OK) == -1)
+                {
+                    printf("we dont have such a directory.");
+                }
+                else
+                {
+                    char came[100];
                     deleteTextFiles(main_copy_of_exe_path_of_code);
                     sprintf(came, "copy %s %s", copy_s, main_copy_of_exe_path_of_code);
-                    system(came);                    
+                    system(came);
                 }
-
             }
-            else {
+            else
+            {
                 printf("you cant reverse because you have unstaged files.");
             }
-            if (access(directoryPath, F_OK) != -1) {
+            if (access(directoryPath, F_OK) != -1)
+            {
 
-                        FILE* ms = fopen(messsage,"r");
-                        char linems[100];
-                        int q=1;
-                        int chq=0;
-                        char *mess;
-                        char* des1;
-                        while (fgets(linems,sizeof(linems),ms)!=NULL){
-                            linems[strcspn(linems,"\n")]='\0';
-                            if (q%7==3){
-                                mess = strtok(linems,":");
-                                mess = strtok(NULL," ");
-                                if (strcmp(mess,id)==0){
-                                    chq = q+1;
-                                }
-                                }
-                            if (chq==q){
-                                des1 = strtok(linems,":");
-                                des1 = strtok(NULL," ");
-                                break;
-                            }
-                            q++;
-                        }
-                        fclose(ms);
-                        char line[300];
-                        // Get the current time
-                        time_t currentTime = time(NULL);
-                        char *timeString;
-                        int count = 0; // number of files that goes to staging.
-                      
-                        char line1[100];
-                        char *ptr;
-                        global_config_file = fopen(global, "r");
-                        if (global_config_file != NULL)
+                FILE *ms = fopen(messsage, "r");
+                char linems[100];
+                int q = 1;
+                int chq = 0;
+                char *mess;
+                char *des1;
+                while (fgets(linems, sizeof(linems), ms) != NULL)
+                {
+                    linems[strcspn(linems, "\n")] = '\0';
+                    if (q % 7 == 3)
+                    {
+                        mess = strtok(linems, ":");
+                        mess = strtok(NULL, " ");
+                        if (strcmp(mess, id) == 0)
                         {
-                            while (fgets(line1, sizeof(line1), global_config_file) != NULL)
-                            {
-                                if (strstr(line1, "last") != NULL)
-                                {
-                                    char *token;
-                                    token = strtok(line1, ":");
-                                    token = strtok(NULL, " ");
-                                    commit_id = atoi(token);
-                                    commit_id++;
-                                    ptr = malloc(sizeof(char) * 2);
-                                    sprintf(ptr, "%d", commit_id);
-                                }
-                            }
+                            chq = q + 1;
                         }
-                        fclose(global_config_file);
-                        global_config_file = fopen(global, "r");
-                        char line2[100];
-                        FILE *fcommit = fopen(temp_c, "w");
-                        while (fgets(line2, sizeof(line2), global_config_file) != NULL)
-                        {
-                            int len = strlen(line2);
-                            line2[len] = '\0';
+                    }
+                    if (chq == q)
+                    {
+                        des1 = strtok(linems, ":");
+                        des1 = strtok(NULL, " ");
+                        break;
+                    }
+                    q++;
+                }
+                fclose(ms);
+                char line[300];
+                // Get the current time
+                time_t currentTime = time(NULL);
+                char *timeString;
+                int count = 0; // number of files that goes to staging.
 
-                            if (strstr(line2, "last") != NULL)
-                            {
-                                fprintf(fcommit, "last_commit_id : %s\n", ptr);
-                            }
-                            else
-                            {
-                                fprintf(fcommit, "%s", line2);
-                            }
-                        }
-                        fclose(fcommit);
-                        fclose(global_config_file);
-                        remove(global);
-                        rename(temp_c, global);
-                        fclose(fcommit);
-                        char line3[100];
-                        FILE *gc = fopen(global, "r");
-                        char line_gc[100];
-                        char *saver_user;
-                        while (fgets(line_gc, sizeof(line_gc), gc) != NULL)
+                char line1[100];
+                char *ptr;
+                global_config_file = fopen(global, "r");
+                if (global_config_file != NULL)
+                {
+                    while (fgets(line1, sizeof(line1), global_config_file) != NULL)
+                    {
+                        if (strstr(line1, "last") != NULL)
                         {
-                            saver_user = strtok(line_gc, ":");
-                            saver_user = strtok(NULL, " ");
-                            break;
+                            char *token;
+                            token = strtok(line1, ":");
+                            token = strtok(NULL, " ");
+                            commit_id = atoi(token);
+                            commit_id++;
+                            ptr = malloc(sizeof(char) * 2);
+                            sprintf(ptr, "%d", commit_id);
                         }
-                        fclose(gc);
-                        char mab [100];
-                        strcpy(mab,currentDirectory);
-                        strcat(mab,"\\commit\\");
-                        strcat(mab,id);
-                        // printf("++ %s\n",mab);
-                        DIR *dir;
-                        struct dirent *entry;
+                    }
+                }
+                fclose(global_config_file);
+                global_config_file = fopen(global, "r");
+                char line2[100];
+                FILE *fcommit = fopen(temp_c, "w");
+                while (fgets(line2, sizeof(line2), global_config_file) != NULL)
+                {
+                    int len = strlen(line2);
+                    line2[len] = '\0';
 
-                     // Open the directory
-                    dir = opendir(mab);
-                     if (dir == NULL) {
+                    if (strstr(line2, "last") != NULL)
+                    {
+                        fprintf(fcommit, "last_commit_id : %s\n", ptr);
+                    }
+                    else
+                    {
+                        fprintf(fcommit, "%s", line2);
+                    }
+                }
+                fclose(fcommit);
+                fclose(global_config_file);
+                remove(global);
+                rename(temp_c, global);
+                fclose(fcommit);
+                char line3[100];
+                FILE *gc = fopen(global, "r");
+                char line_gc[100];
+                char *saver_user;
+                while (fgets(line_gc, sizeof(line_gc), gc) != NULL)
+                {
+                    saver_user = strtok(line_gc, ":");
+                    saver_user = strtok(NULL, " ");
+                    break;
+                }
+                fclose(gc);
+                char mab[100];
+                strcpy(mab, currentDirectory);
+                strcat(mab, "\\commit\\");
+                strcat(mab, id);
+                // printf("++ %s\n",mab);
+                DIR *dir;
+                struct dirent *entry;
+
+                // Open the directory
+                dir = opendir(mab);
+                if (dir == NULL)
+                {
                     printf("Unable to open the directory.\n");
                     continue;
-                        }
-                    char copy_dir[100][100];
-                    int indexs=0;
-                  while ((entry = readdir(dir)) != NULL)
-                 {
-                // Ignore the "." and ".." entries
-                if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
-                {
-                    strcpy(copy_dir[indexs], entry->d_name);
-                    // printf("%s\n",names_of_files[counter]);
-                    indexs++;
                 }
+                char copy_dir[100][100];
+                int indexs = 0;
+                while ((entry = readdir(dir)) != NULL)
+                {
+                    // Ignore the "." and ".." entries
+                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+                    {
+                        strcpy(copy_dir[indexs], entry->d_name);
+                        // printf("%s\n",names_of_files[counter]);
+                        indexs++;
+                    }
                 }
 
-                    // Close the directory
+                // Close the directory
                 closedir(dir);
                 FILE *me = fopen(messsage, "a");
-                                for (int i=0; i<indexs;i++){
-                                fprintf(me, "file : %s\n", copy_dir[i]);
-                                fprintf(me, "username : %s\n", saver_user);
-                                fprintf(me, "commit id : %d\n ", commit_id);
-                                fprintf(me, "message is : %s\n", des1);
-                                fprintf(me, "number of files in this commit is : %d\n", indexs);
-                                timeString = ctime(&currentTime);
-                                fprintf(me, "time : %s", timeString);
-                                fprintf(me, "branch : %s\n", "master");
-                       }
-                        fclose(me);
-                        char commit_iid[100];
-                        char str[100];
-                        sprintf(str, "%d", commit_id);
-                        strcpy(commit_iid, currentDirectory);
-                        strcat(commit_iid, "\\commit\\");
-                        strcat(commit_iid, str);
-                        mkdir(commit_iid);
-                        char dastor[100];
-                        sprintf(dastor, "copy %s %s",mab, commit_iid);
-                        system(dastor);
+                for (int i = 0; i < indexs; i++)
+                {
+                    fprintf(me, "file : %s\n", copy_dir[i]);
+                    fprintf(me, "username : %s\n", saver_user);
+                    fprintf(me, "commit id : %d\n ", commit_id);
+                    fprintf(me, "message is : %s\n", des1);
+                    fprintf(me, "number of files in this commit is : %d\n", indexs);
+                    timeString = ctime(&currentTime);
+                    fprintf(me, "time : %s", timeString);
+                    fprintf(me, "branch : %s\n", "master");
+                }
+                fclose(me);
+                char commit_iid[100];
+                char str[100];
+                sprintf(str, "%d", commit_id);
+                strcpy(commit_iid, currentDirectory);
+                strcat(commit_iid, "\\commit\\");
+                strcat(commit_iid, str);
+                mkdir(commit_iid);
+                char dastor[100];
+                sprintf(dastor, "copy %s %s", mab, commit_iid);
+                system(dastor);
             }
-            
-            else {
-                            FILE* ms = fopen(messsage,"r");
-                        char linems[100];
-                        int q=1;
-                        int chq=0;
-                        char *mess;
-                        char* des1;
-                        while (fgets(linems,sizeof(linems),ms)!=NULL){
-                            linems[strcspn(linems,"\n")]='\0';
-                            if (q%7==3){
-                                mess = strtok(linems,":");
-                                mess = strtok(NULL," ");
-                                if (strcmp(mess,id)==0){
-                                    chq = q+1;
-                                }
-                                }
-                            if (chq==q){
-                                des1 = strtok(linems,":");
-                                des1 = strtok(NULL," ");
-                                break;
-                            }
-                            q++;
-                        }
-                        fclose(ms);
-                            char commit_message[100];
-                            char line[300];
-                            FILE *message = fopen(messsage, "a");
-                            // Get the current time
-                            time_t currentTime = time(NULL);
-                            char *timeString;
-                            char line_user[100];
-                            char *ptr;
-                            char line_con[100];
-                            FILE *config = fopen(copy_config, "r");
-                            FILE *user = fopen(copy_info_saver, "r");
-                            char *token2;
-                            rewind(user);
-                            rewind(config);
-                            while (fgets(line_user, sizeof(line_user), user) != NULL)
-                            {
-                                line_user[strcspn(line_user, "\n")] = '\0';
-                                if (strstr(line_user, "Username") != NULL)
-                                {
-                                    token2 = strtok(line_user, ":");
-                                    token2 = strtok(NULL, " ");
-                                    break;
-                                }
-                            }
-                            int count_l = 1;
-                            rewind(config);
-                            int saver = 0;
-                            rewind(config);
-                            while (fgets(line_con, sizeof(line_con), config) != NULL)
-                            {
-                                line_con[strlen(line_con) - 1] = '\0';
-                                if ((count_l % 5 == 1))
-                                {
-                                    char *extract;
-                                    extract = strtok(line_con, ":");
-                                    extract = strtok(NULL, " ");
-                                    if (strcmp(extract, token2) == 0)
-                                    {
-                                        saver = count_l + 2;
-                                    }
-                                }
-                                if (count_l == saver)
-                                {
-                                    char *token;
-                                    token = strtok(line_con, ":");
-                                    token = strtok(NULL, " ");
-                                    commit_id = atoi(token);
-                                    commit_id++;
-                                    ptr = malloc(sizeof(char) * 2);
-                                    sprintf(ptr, "%d", commit_id);
-                                    break;
-                                }
-                                count_l++;
-                            }
-                            fclose(config);
-                            fclose(user);
-                            config = fopen(copy_config, "r");
-                            char line2[100];
-                            FILE *fcommit = fopen(temp_c, "w");
-                            int counter_c = 0;
-                            while (fgets(line2, sizeof(line2), config) != NULL)
-                            {
-                                counter_c++;
-                                if (counter_c == saver)
-                                {
-                                    fprintf(fcommit, "last_commit_id : %s\n", ptr);
-                                }
-                                else
-                                {
-                                    fprintf(fcommit, "%s", line2);
-                                }
-                            }
-                            fclose(fcommit);
-                            fclose(config);
-                            remove(copy_config);
-                            rename(temp_c, copy_config);
-                            fclose(fcommit);
-                            // 
-                            char line3[100];
-                            char mab [100];
-                        strcpy(mab,currentDirectory);
-                        strcat(mab,"\\commit\\");
-                        strcat(mab,id);
-                        // printf("++ %s\n",mab);
-                        DIR *dir;
-                        struct dirent *entry;
 
-                     // Open the directory
-                    dir = opendir(mab);
-                     if (dir == NULL) {
+            else
+            {
+                FILE *ms = fopen(messsage, "r");
+                char linems[100];
+                int q = 1;
+                int chq = 0;
+                char *mess;
+                char *des1;
+                while (fgets(linems, sizeof(linems), ms) != NULL)
+                {
+                    linems[strcspn(linems, "\n")] = '\0';
+                    if (q % 7 == 3)
+                    {
+                        mess = strtok(linems, ":");
+                        mess = strtok(NULL, " ");
+                        if (strcmp(mess, id) == 0)
+                        {
+                            chq = q + 1;
+                        }
+                    }
+                    if (chq == q)
+                    {
+                        des1 = strtok(linems, ":");
+                        des1 = strtok(NULL, " ");
+                        break;
+                    }
+                    q++;
+                }
+                fclose(ms);
+                char commit_message[100];
+                char line[300];
+                FILE *message = fopen(messsage, "a");
+                // Get the current time
+                time_t currentTime = time(NULL);
+                char *timeString;
+                char line_user[100];
+                char *ptr;
+                char line_con[100];
+                FILE *config = fopen(copy_config, "r");
+                FILE *user = fopen(copy_info_saver, "r");
+                char *token2;
+                rewind(user);
+                rewind(config);
+                while (fgets(line_user, sizeof(line_user), user) != NULL)
+                {
+                    line_user[strcspn(line_user, "\n")] = '\0';
+                    if (strstr(line_user, "Username") != NULL)
+                    {
+                        token2 = strtok(line_user, ":");
+                        token2 = strtok(NULL, " ");
+                        break;
+                    }
+                }
+                int count_l = 1;
+                rewind(config);
+                int saver = 0;
+                rewind(config);
+                while (fgets(line_con, sizeof(line_con), config) != NULL)
+                {
+                    line_con[strlen(line_con) - 1] = '\0';
+                    if ((count_l % 5 == 1))
+                    {
+                        char *extract;
+                        extract = strtok(line_con, ":");
+                        extract = strtok(NULL, " ");
+                        if (strcmp(extract, token2) == 0)
+                        {
+                            saver = count_l + 2;
+                        }
+                    }
+                    if (count_l == saver)
+                    {
+                        char *token;
+                        token = strtok(line_con, ":");
+                        token = strtok(NULL, " ");
+                        commit_id = atoi(token);
+                        commit_id++;
+                        ptr = malloc(sizeof(char) * 2);
+                        sprintf(ptr, "%d", commit_id);
+                        break;
+                    }
+                    count_l++;
+                }
+                fclose(config);
+                fclose(user);
+                config = fopen(copy_config, "r");
+                char line2[100];
+                FILE *fcommit = fopen(temp_c, "w");
+                int counter_c = 0;
+                while (fgets(line2, sizeof(line2), config) != NULL)
+                {
+                    counter_c++;
+                    if (counter_c == saver)
+                    {
+                        fprintf(fcommit, "last_commit_id : %s\n", ptr);
+                    }
+                    else
+                    {
+                        fprintf(fcommit, "%s", line2);
+                    }
+                }
+                fclose(fcommit);
+                fclose(config);
+                remove(copy_config);
+                rename(temp_c, copy_config);
+                fclose(fcommit);
+                //
+                char line3[100];
+                char mab[100];
+                strcpy(mab, currentDirectory);
+                strcat(mab, "\\commit\\");
+                strcat(mab, id);
+                // printf("++ %s\n",mab);
+                DIR *dir;
+                struct dirent *entry;
+
+                // Open the directory
+                dir = opendir(mab);
+                if (dir == NULL)
+                {
                     printf("Unable to open the directory.\n");
                     continue;
-                        }
-                    char copy_dir[100][100];
-                    int indexs=0;
-                  while ((entry = readdir(dir)) != NULL)
-                 {
-                // Ignore the "." and ".." entries
-                if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
-                {
-                    strcpy(copy_dir[indexs], entry->d_name);
-                    // printf("%s\n",names_of_files[counter]);
-                    indexs++;
                 }
+                char copy_dir[100][100];
+                int indexs = 0;
+                while ((entry = readdir(dir)) != NULL)
+                {
+                    // Ignore the "." and ".." entries
+                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+                    {
+                        strcpy(copy_dir[indexs], entry->d_name);
+                        // printf("%s\n",names_of_files[counter]);
+                        indexs++;
+                    }
                 }
 
-                    // Close the directory
+                // Close the directory
                 closedir(dir);
                 FILE *me = fopen(messsage, "a");
-                                for (int i=0; i<indexs;i++){
-                                fprintf(me, "file : %s\n", copy_dir[i]);
-                                fprintf(me, "username : %s\n", token2);
-                                fprintf(me, "commit id : %d\n ", commit_id);
-                                fprintf(me, "message is : %s\n", des1);
-                                fprintf(me, "number of files in this commit is : %d\n", indexs);
-                                timeString = ctime(&currentTime);
-                                fprintf(me, "time : %s", timeString);
-                                fprintf(me, "branch : %s\n", "master");
-                       }
-                        fclose(me);
-                        char commit_iid[100];
-                        char str[100];
-                        sprintf(str, "%d", commit_id);
-                        strcpy(commit_iid, currentDirectory);
-                        strcat(commit_iid, "\\commit\\");
-                        strcat(commit_iid, str);
-                        mkdir(commit_iid);
-                        char dastor[100];
-                        sprintf(dastor, "copy %s %s",mab, commit_iid);
-                        system(dastor);
-                            
+                for (int i = 0; i < indexs; i++)
+                {
+                    fprintf(me, "file : %s\n", copy_dir[i]);
+                    fprintf(me, "username : %s\n", token2);
+                    fprintf(me, "commit id : %d\n ", commit_id);
+                    fprintf(me, "message is : %s\n", des1);
+                    fprintf(me, "number of files in this commit is : %d\n", indexs);
+                    timeString = ctime(&currentTime);
+                    fprintf(me, "time : %s", timeString);
+                    fprintf(me, "branch : %s\n", "master");
+                }
+                fclose(me);
+                char commit_iid[100];
+                char str[100];
+                sprintf(str, "%d", commit_id);
+                strcpy(commit_iid, currentDirectory);
+                strcat(commit_iid, "\\commit\\");
+                strcat(commit_iid, str);
+                mkdir(commit_iid);
+                char dastor[100];
+                sprintf(dastor, "copy %s %s", mab, commit_iid);
+                system(dastor);
             }
         }
-    
-        else if (strncmp (command,"neogit revert m",15)==0){
-             char *op[1000];
-            int count =0;
+
+        else if (strncmp(command, "neogit revert m", 15) == 0)
+        {
+            char *op[1000];
+            int count = 0;
             char id[100];
-            tokenizeStrings(command,op,&count);
-            char messagee [100];
-            strcpy(messagee,op[0]);
-            strcpy(id,op[1]);
+            tokenizeStrings(command, op, &count);
+            char messagee[100];
+            strcpy(messagee, op[0]);
+            strcpy(id, op[1]);
             // neogit revert <hello hi> "1"
             char copy_un[100];
-            strcpy(copy_un,currentDirectory);
-            strcat(copy_un,"\\unstage");
+            strcpy(copy_un, currentDirectory);
+            strcat(copy_un, "\\unstage");
             struct stat st;
-            if (access(copy_un,F_OK)==-1 || st.st_size == 0){
-                
-                char copy_s [100];
-                strcpy(copy_s,currentDirectory);
-                strcat (copy_s,"\\commit\\");
-                strcat(copy_s,id);
-                if (access(copy_s,F_OK)==-1) printf("we dont have such a directory.");
-                else {
-                    char came [100];
+            if (access(copy_un, F_OK) == -1 || st.st_size == 0)
+            {
+
+                char copy_s[100];
+                strcpy(copy_s, currentDirectory);
+                strcat(copy_s, "\\commit\\");
+                strcat(copy_s, id);
+                if (access(copy_s, F_OK) == -1)
+                    printf("we dont have such a directory.");
+                else
+                {
+                    char came[100];
                     deleteTextFiles(main_copy_of_exe_path_of_code);
                     sprintf(came, "copy %s %s", copy_s, main_copy_of_exe_path_of_code);
-                    system(came);                    
+                    system(came);
                 }
-
             }
-            else {
+            else
+            {
                 printf("you cant reverse because you have unstaged files.");
             }
-           
-             if (access(directoryPath, F_OK) != -1) {
 
-                        FILE* ms = fopen(messsage,"r");
-                        fclose(ms);
-                        // Get the current time
-                        time_t currentTime = time(NULL);
-                        char *timeString;
-                        // number of files that goes to staging.
-                      
-                        char line1[100];
-                        char *ptr;
-                        global_config_file = fopen(global, "r");
-                        if (global_config_file != NULL)
-                        {
-                            while (fgets(line1, sizeof(line1), global_config_file) != NULL)
-                            {
-                                if (strstr(line1, "last") != NULL)
-                                {
-                                    char *token;
-                                    token = strtok(line1, ":");
-                                    token = strtok(NULL, " ");
-                                    commit_id = atoi(token);
-                                    commit_id++;
-                                    ptr = malloc(sizeof(char) * 2);
-                                    sprintf(ptr, "%d", commit_id);
-                                }
-                            }
-                        }
-                        fclose(global_config_file);
-                        global_config_file = fopen(global, "r");
-                        char line2[100];
-                        FILE *fcommit = fopen(temp_c, "w");
-                        while (fgets(line2, sizeof(line2), global_config_file) != NULL)
-                        {
-                            int len = strlen(line2);
-                            line2[len] = '\0';
+            if (access(directoryPath, F_OK) != -1)
+            {
 
-                            if (strstr(line2, "last") != NULL)
-                            {
-                                fprintf(fcommit, "last_commit_id : %s\n", ptr);
-                            }
-                            else
-                            {
-                                fprintf(fcommit, "%s", line2);
-                            }
-                        }
-                        fclose(fcommit);
-                        fclose(global_config_file);
-                        remove(global);
-                        rename(temp_c, global);
-                        fclose(fcommit);
-                        char line3[100];
-                        FILE *gc = fopen(global, "r");
-                        char line_gc[100];
-                        char *saver_user;
-                        while (fgets(line_gc, sizeof(line_gc), gc) != NULL)
-                        {
-                            saver_user = strtok(line_gc, ":");
-                            saver_user = strtok(NULL, " ");
-                            break;
-                        }
-                        fclose(gc);
-                        char mab [100];
-                        strcpy(mab,currentDirectory);
-                        strcat(mab,"\\commit\\");
-                        strcat(mab,id);
-                        // printf("++ %s\n",mab);
-                        DIR *dir;
-                        struct dirent *entry;
+                FILE *ms = fopen(messsage, "r");
+                fclose(ms);
+                // Get the current time
+                time_t currentTime = time(NULL);
+                char *timeString;
+                // number of files that goes to staging.
 
-                     // Open the directory
-                    dir = opendir(mab);
-                     if (dir == NULL) {
+                char line1[100];
+                char *ptr;
+                global_config_file = fopen(global, "r");
+                if (global_config_file != NULL)
+                {
+                    while (fgets(line1, sizeof(line1), global_config_file) != NULL)
+                    {
+                        if (strstr(line1, "last") != NULL)
+                        {
+                            char *token;
+                            token = strtok(line1, ":");
+                            token = strtok(NULL, " ");
+                            commit_id = atoi(token);
+                            commit_id++;
+                            ptr = malloc(sizeof(char) * 2);
+                            sprintf(ptr, "%d", commit_id);
+                        }
+                    }
+                }
+                fclose(global_config_file);
+                global_config_file = fopen(global, "r");
+                char line2[100];
+                FILE *fcommit = fopen(temp_c, "w");
+                while (fgets(line2, sizeof(line2), global_config_file) != NULL)
+                {
+                    int len = strlen(line2);
+                    line2[len] = '\0';
+
+                    if (strstr(line2, "last") != NULL)
+                    {
+                        fprintf(fcommit, "last_commit_id : %s\n", ptr);
+                    }
+                    else
+                    {
+                        fprintf(fcommit, "%s", line2);
+                    }
+                }
+                fclose(fcommit);
+                fclose(global_config_file);
+                remove(global);
+                rename(temp_c, global);
+                fclose(fcommit);
+                char line3[100];
+                FILE *gc = fopen(global, "r");
+                char line_gc[100];
+                char *saver_user;
+                while (fgets(line_gc, sizeof(line_gc), gc) != NULL)
+                {
+                    saver_user = strtok(line_gc, ":");
+                    saver_user = strtok(NULL, " ");
+                    break;
+                }
+                fclose(gc);
+                char mab[100];
+                strcpy(mab, currentDirectory);
+                strcat(mab, "\\commit\\");
+                strcat(mab, id);
+                // printf("++ %s\n",mab);
+                DIR *dir;
+                struct dirent *entry;
+
+                // Open the directory
+                dir = opendir(mab);
+                if (dir == NULL)
+                {
                     printf("Unable to open the directory.\n");
                     continue;
-                        }
-                    char copy_dir[100][100];
-                    int indexs=0;
-                  while ((entry = readdir(dir)) != NULL)
-                 {
-                // Ignore the "." and ".." entries
-                if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
-                {
-                    strcpy(copy_dir[indexs], entry->d_name);
-                    // printf("%s\n",names_of_files[counter]);
-                    indexs++;
                 }
+                char copy_dir[100][100];
+                int indexs = 0;
+                while ((entry = readdir(dir)) != NULL)
+                {
+                    // Ignore the "." and ".." entries
+                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+                    {
+                        strcpy(copy_dir[indexs], entry->d_name);
+                        // printf("%s\n",names_of_files[counter]);
+                        indexs++;
+                    }
                 }
 
-                    // Close the directory
+                // Close the directory
                 closedir(dir);
                 FILE *me = fopen(messsage, "a");
-                                for (int i=0; i<indexs;i++){
-                                fprintf(me, "file : %s\n", copy_dir[i]);
-                                fprintf(me, "username : %s\n", saver_user);
-                                fprintf(me, "commit id : %d\n ", commit_id);
-                                fprintf(me, "message is : %s\n", messagee);
-                                fprintf(me, "number of files in this commit is : %d\n", indexs);
-                                timeString = ctime(&currentTime);
-                                fprintf(me, "time : %s", timeString);
-                                fprintf(me, "branch : %s\n", "master");
-                       }
-                        fclose(me);
-                        char commit_iid[100];
-                        char str[100];
-                        sprintf(str, "%d", commit_id);
-                        strcpy(commit_iid, currentDirectory);
-                        strcat(commit_iid, "\\commit\\");
-                        strcat(commit_iid, str);
-                        mkdir(commit_iid);
-                        char dastor[100];
-                        sprintf(dastor, "copy %s %s",mab, commit_iid);
-                        system(dastor);
-
+                for (int i = 0; i < indexs; i++)
+                {
+                    fprintf(me, "file : %s\n", copy_dir[i]);
+                    fprintf(me, "username : %s\n", saver_user);
+                    fprintf(me, "commit id : %d\n ", commit_id);
+                    fprintf(me, "message is : %s\n", messagee);
+                    fprintf(me, "number of files in this commit is : %d\n", indexs);
+                    timeString = ctime(&currentTime);
+                    fprintf(me, "time : %s", timeString);
+                    fprintf(me, "branch : %s\n", "master");
+                }
+                fclose(me);
+                char commit_iid[100];
+                char str[100];
+                sprintf(str, "%d", commit_id);
+                strcpy(commit_iid, currentDirectory);
+                strcat(commit_iid, "\\commit\\");
+                strcat(commit_iid, str);
+                mkdir(commit_iid);
+                char dastor[100];
+                sprintf(dastor, "copy %s %s", mab, commit_iid);
+                system(dastor);
             }
 
-             else {
-                            FILE* ms = fopen(messsage,"r");
-                        char linems[100];
-                        int q=1;
-                        int chq=0;
-                        char *mess;
-                        char* des1;
-                        while (fgets(linems,sizeof(linems),ms)!=NULL){
-                            linems[strcspn(linems,"\n")]='\0';
-                            if (q%7==3){
-                                mess = strtok(linems,":");
-                                mess = strtok(NULL," ");
-                                if (strcmp(mess,id)==0){
-                                    chq = q+1;
-                                }
-                                }
-                            if (chq==q){
-                                des1 = strtok(linems,":");
-                                des1 = strtok(NULL," ");
-                                break;
-                            }
-                            q++;
+            else
+            {
+                FILE *ms = fopen(messsage, "r");
+                char linems[100];
+                int q = 1;
+                int chq = 0;
+                char *mess;
+                char *des1;
+                while (fgets(linems, sizeof(linems), ms) != NULL)
+                {
+                    linems[strcspn(linems, "\n")] = '\0';
+                    if (q % 7 == 3)
+                    {
+                        mess = strtok(linems, ":");
+                        mess = strtok(NULL, " ");
+                        if (strcmp(mess, id) == 0)
+                        {
+                            chq = q + 1;
                         }
-                        fclose(ms);
-                            char commit_message[100];
-                            char line[300];
-                            FILE *message = fopen(messsage, "a");
-                            // Get the current time
-                            time_t currentTime = time(NULL);
-                            char *timeString;
-                            char line_user[100];
-                            char *ptr;
-                            char line_con[100];
-                            FILE *config = fopen(copy_config, "r");
-                            FILE *user = fopen(copy_info_saver, "r");
-                            char *token2;
-                            rewind(user);
-                            rewind(config);
-                            while (fgets(line_user, sizeof(line_user), user) != NULL)
-                            {
-                                line_user[strcspn(line_user, "\n")] = '\0';
-                                if (strstr(line_user, "Username") != NULL)
-                                {
-                                    token2 = strtok(line_user, ":");
-                                    token2 = strtok(NULL, " ");
-                                    break;
-                                }
-                            }
-                            int count_l = 1;
-                            rewind(config);
-                            int saver = 0;
-                            rewind(config);
-                            while (fgets(line_con, sizeof(line_con), config) != NULL)
-                            {
-                                line_con[strlen(line_con) - 1] = '\0';
-                                if ((count_l % 5 == 1))
-                                {
-                                    char *extract;
-                                    extract = strtok(line_con, ":");
-                                    extract = strtok(NULL, " ");
-                                    if (strcmp(extract, token2) == 0)
-                                    {
-                                        saver = count_l + 2;
-                                    }
-                                }
-                                if (count_l == saver)
-                                {
-                                    char *token;
-                                    token = strtok(line_con, ":");
-                                    token = strtok(NULL, " ");
-                                    commit_id = atoi(token);
-                                    commit_id++;
-                                    ptr = malloc(sizeof(char) * 2);
-                                    sprintf(ptr, "%d", commit_id);
-                                    break;
-                                }
-                                count_l++;
-                            }
-                            fclose(config);
-                            fclose(user);
-                            config = fopen(copy_config, "r");
-                            char line2[100];
-                            FILE *fcommit = fopen(temp_c, "w");
-                            int counter_c = 0;
-                            while (fgets(line2, sizeof(line2), config) != NULL)
-                            {
-                                counter_c++;
-                                if (counter_c == saver)
-                                {
-                                    fprintf(fcommit, "last_commit_id : %s\n", ptr);
-                                }
-                                else
-                                {
-                                    fprintf(fcommit, "%s", line2);
-                                }
-                            }
-                            fclose(fcommit);
-                            fclose(config);
-                            remove(copy_config);
-                            rename(temp_c, copy_config);
-                            fclose(fcommit);
-                            // 
-                            char line3[100];
-                            char mab [100];
-                        strcpy(mab,currentDirectory);
-                        strcat(mab,"\\commit\\");
-                        strcat(mab,id);
-                        // printf("++ %s\n",mab);
-                        DIR *dir;
-                        struct dirent *entry;
+                    }
+                    if (chq == q)
+                    {
+                        des1 = strtok(linems, ":");
+                        des1 = strtok(NULL, " ");
+                        break;
+                    }
+                    q++;
+                }
+                fclose(ms);
+                char commit_message[100];
+                char line[300];
+                FILE *message = fopen(messsage, "a");
+                // Get the current time
+                time_t currentTime = time(NULL);
+                char *timeString;
+                char line_user[100];
+                char *ptr;
+                char line_con[100];
+                FILE *config = fopen(copy_config, "r");
+                FILE *user = fopen(copy_info_saver, "r");
+                char *token2;
+                rewind(user);
+                rewind(config);
+                while (fgets(line_user, sizeof(line_user), user) != NULL)
+                {
+                    line_user[strcspn(line_user, "\n")] = '\0';
+                    if (strstr(line_user, "Username") != NULL)
+                    {
+                        token2 = strtok(line_user, ":");
+                        token2 = strtok(NULL, " ");
+                        break;
+                    }
+                }
+                int count_l = 1;
+                rewind(config);
+                int saver = 0;
+                rewind(config);
+                while (fgets(line_con, sizeof(line_con), config) != NULL)
+                {
+                    line_con[strlen(line_con) - 1] = '\0';
+                    if ((count_l % 5 == 1))
+                    {
+                        char *extract;
+                        extract = strtok(line_con, ":");
+                        extract = strtok(NULL, " ");
+                        if (strcmp(extract, token2) == 0)
+                        {
+                            saver = count_l + 2;
+                        }
+                    }
+                    if (count_l == saver)
+                    {
+                        char *token;
+                        token = strtok(line_con, ":");
+                        token = strtok(NULL, " ");
+                        commit_id = atoi(token);
+                        commit_id++;
+                        ptr = malloc(sizeof(char) * 2);
+                        sprintf(ptr, "%d", commit_id);
+                        break;
+                    }
+                    count_l++;
+                }
+                fclose(config);
+                fclose(user);
+                config = fopen(copy_config, "r");
+                char line2[100];
+                FILE *fcommit = fopen(temp_c, "w");
+                int counter_c = 0;
+                while (fgets(line2, sizeof(line2), config) != NULL)
+                {
+                    counter_c++;
+                    if (counter_c == saver)
+                    {
+                        fprintf(fcommit, "last_commit_id : %s\n", ptr);
+                    }
+                    else
+                    {
+                        fprintf(fcommit, "%s", line2);
+                    }
+                }
+                fclose(fcommit);
+                fclose(config);
+                remove(copy_config);
+                rename(temp_c, copy_config);
+                fclose(fcommit);
+                //
+                char line3[100];
+                char mab[100];
+                strcpy(mab, currentDirectory);
+                strcat(mab, "\\commit\\");
+                strcat(mab, id);
+                // printf("++ %s\n",mab);
+                DIR *dir;
+                struct dirent *entry;
 
-                     // Open the directory
-                    dir = opendir(mab);
-                     if (dir == NULL) {
+                // Open the directory
+                dir = opendir(mab);
+                if (dir == NULL)
+                {
                     printf("Unable to open the directory.\n");
                     continue;
-                        }
-                    char copy_dir[100][100];
-                    int indexs=0;
-                  while ((entry = readdir(dir)) != NULL)
-                 {
-                // Ignore the "." and ".." entries
-                if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
-                {
-                    strcpy(copy_dir[indexs], entry->d_name);
-                    // printf("%s\n",names_of_files[counter]);
-                    indexs++;
                 }
+                char copy_dir[100][100];
+                int indexs = 0;
+                while ((entry = readdir(dir)) != NULL)
+                {
+                    // Ignore the "." and ".." entries
+                    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+                    {
+                        strcpy(copy_dir[indexs], entry->d_name);
+                        // printf("%s\n",names_of_files[counter]);
+                        indexs++;
+                    }
                 }
 
-                    // Close the directory
+                // Close the directory
                 closedir(dir);
                 FILE *me = fopen(messsage, "a");
-                                for (int i=0; i<indexs;i++){
-                                fprintf(me, "file : %s\n", copy_dir[i]);
-                                fprintf(me, "username : %s\n", token2);
-                                fprintf(me, "commit id : %d\n ", commit_id);
-                                fprintf(me, "message is : %s\n", messagee);
-                                fprintf(me, "number of files in this commit is : %d\n", indexs);
-                                timeString = ctime(&currentTime);
-                                fprintf(me, "time : %s", timeString);
-                                fprintf(me, "branch : %s\n", "master");
-                       }
-                        fclose(me);
-                        char commit_iid[100];
-                        char str[100];
-                        sprintf(str, "%d", commit_id);
-                        strcpy(commit_iid, currentDirectory);
-                        strcat(commit_iid, "\\commit\\");
-                        strcat(commit_iid, str);
-                        mkdir(commit_iid);
-                        char dastor[100];
-                        sprintf(dastor, "copy %s %s",mab, commit_iid);
-                        system(dastor);
-                            
+                for (int i = 0; i < indexs; i++)
+                {
+                    fprintf(me, "file : %s\n", copy_dir[i]);
+                    fprintf(me, "username : %s\n", token2);
+                    fprintf(me, "commit id : %d\n ", commit_id);
+                    fprintf(me, "message is : %s\n", messagee);
+                    fprintf(me, "number of files in this commit is : %d\n", indexs);
+                    timeString = ctime(&currentTime);
+                    fprintf(me, "time : %s", timeString);
+                    fprintf(me, "branch : %s\n", "master");
+                }
+                fclose(me);
+                char commit_iid[100];
+                char str[100];
+                sprintf(str, "%d", commit_id);
+                strcpy(commit_iid, currentDirectory);
+                strcat(commit_iid, "\\commit\\");
+                strcat(commit_iid, str);
+                mkdir(commit_iid);
+                char dastor[100];
+                sprintf(dastor, "copy %s %s", mab, commit_iid);
+                system(dastor);
             }
-
         }
-    
-        else if (strncmp(command,"neogit revert -n",16)==0){
+
+        else if (strncmp(command, "neogit revert -n", 16) == 0)
+        {
             char id[100];
-           if (strstr(command,"\"")!=NULL){
-            search(command,id);
-            char copy_un[100];
-            strcpy(copy_un,currentDirectory);
-            strcat(copy_un,"\\unstage");
-            struct stat st;
-            if (access(copy_un,F_OK)==-1 || st.st_size == 0){
-                
-                char copy_s [100];
-                strcpy(copy_s,currentDirectory);
-                strcat (copy_s,"\\commit\\");
-                strcat(copy_s,id);
-                if (access(copy_s,F_OK)==-1) printf("we dont have such a directory.");
-                else {
-                    char came [100];
-                    deleteTextFiles(main_copy_of_exe_path_of_code);
-                    sprintf(came, "copy %s %s", copy_s, main_copy_of_exe_path_of_code);
-                    system(came);                    
+            if (strstr(command, "\"") != NULL)
+            {
+                search(command, id);
+                char copy_un[100];
+                strcpy(copy_un, currentDirectory);
+                strcat(copy_un, "\\unstage");
+                struct stat st;
+                if (access(copy_un, F_OK) == -1 || st.st_size == 0)
+                {
+
+                    char copy_s[100];
+                    strcpy(copy_s, currentDirectory);
+                    strcat(copy_s, "\\commit\\");
+                    strcat(copy_s, id);
+                    if (access(copy_s, F_OK) == -1)
+                        printf("we dont have such a directory.");
+                    else
+                    {
+                        char came[100];
+                        deleteTextFiles(main_copy_of_exe_path_of_code);
+                        sprintf(came, "copy %s %s", copy_s, main_copy_of_exe_path_of_code);
+                        system(came);
+                    }
                 }
-
+                else
+                {
+                    printf("you cant do this action because you have unstaged files.");
+                }
             }
-            else {
-                printf("you cant do this action because you have unstaged files.");
-            }
-           }
 
-            else 
+            else
             {
                 char copy_c[100];
                 strcpy(copy_c, currentDirectory);
                 strcat(copy_c, "\\commit");
                 char copy_com[100];
-                strcpy(copy_com,copy_c);
-                strcat(copy_com,"\\*");
-                  struct dirent *entry;
-            struct stat fileStat;
-            WIN32_FIND_DATA findFileData;
-            HANDLE hFind = FindFirstFile(_T(copy_com), &findFileData);
+                strcpy(copy_com, copy_c);
+                strcat(copy_com, "\\*");
+                struct dirent *entry;
+                struct stat fileStat;
+                WIN32_FIND_DATA findFileData;
+                HANDLE hFind = FindFirstFile(_T(copy_com), &findFileData);
 
-            if (hFind == INVALID_HANDLE_VALUE) {
-            _tprintf(_T("Error opening directory\n"));
-                continue;
-            }
-
-             FILETIME latestTime = findFileData.ftCreationTime;
-             TCHAR latestFolder[MAX_PATH];
-            _tcscpy(latestFolder, findFileData.cFileName);
-
-             while (FindNextFile(hFind, &findFileData) != 0) 
-             {
-                if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                if (CompareFileTime(&findFileData.ftCreationTime, &latestTime) > 0) 
+                if (hFind == INVALID_HANDLE_VALUE)
                 {
-                latestTime = findFileData.ftCreationTime;
-                _tcscpy(latestFolder, findFileData.cFileName);
-                }
-                }
+                    _tprintf(_T("Error opening directory\n"));
+                    continue;
                 }
 
-            FindClose(hFind);
-            _tprintf(_T("Latest folder: %s\n"), latestFolder);
-            strcat(copy_c, "\\");
-            strcat(copy_c, latestFolder); 
-            char dost[100];
-            deleteTextFiles(main_copy_of_exe_path_of_code);
-            sprintf(dost, "copy %s %s", copy_c, main_copy_of_exe_path_of_code);
-            system(dost);
+                FILETIME latestTime = findFileData.ftCreationTime;
+                TCHAR latestFolder[MAX_PATH];
+                _tcscpy(latestFolder, findFileData.cFileName);
+
+                while (FindNextFile(hFind, &findFileData) != 0)
+                {
+                    if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                    {
+                        if (CompareFileTime(&findFileData.ftCreationTime, &latestTime) > 0)
+                        {
+                            latestTime = findFileData.ftCreationTime;
+                            _tcscpy(latestFolder, findFileData.cFileName);
+                        }
+                    }
+                }
+
+                FindClose(hFind);
+                _tprintf(_T("Latest folder: %s\n"), latestFolder);
+                strcat(copy_c, "\\");
+                strcat(copy_c, latestFolder);
+                char dost[100];
+                deleteTextFiles(main_copy_of_exe_path_of_code);
+                sprintf(dost, "copy %s %s", copy_c, main_copy_of_exe_path_of_code);
+                system(dost);
             }
-        }    
-    
-        else if (strcmp(command,"neogit pre-commit")==0){
-            char hook [100];
+        }
+
+        else if (strcmp(command, "neogit pre-commit") == 0)
+        {
+
+            char hook[100];
             DIR *dir;
             struct dirent *entry;
             struct stat fileStat;
 
-        // Open the directory
-        dir = opendir(copy_unstage);
-        if (dir == NULL) {
-        printf("Unable to open the directory.\n");
-     }
+            // Open the directory
+            dir = opendir(copy_unstage);
+            if (dir == NULL)
+            {
+                printf("Unable to open the directory.\n");
+            }
 
-    // Read each entry in the directory
-        while ((entry = readdir(dir)) != NULL) {
-        // Get the file status
-        stat(entry->d_name, &fileStat);
-        // Check if the entry is a regular file and not a hidden file
-        if (strcmp(entry->d_name, ".")!=0 && strcmp(entry->d_name, "..")!=0) {
-            char copy_s [100];
-            strcpy(copy_s,copy_unstage);
-            strcat(copy_s,"\\\\");
-            strcat(copy_s,entry->d_name);
-            printf("%s\n",entry->d_name);
+            // Read each entry in the directory
+            while ((entry = readdir(dir)) != NULL)
+            {
+                // Get the file status
+                stat(entry->d_name, &fileStat);
+                // Check if the entry is a regular file and not a hidden file
+                if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
+                {
+                    char copy_s[100];
+                    strcpy(copy_s, copy_unstage);
+                    strcat(copy_s, "\\\\");
+                    strcat(copy_s, entry->d_name);
+                    printf("%s\n", entry->d_name);
 
+                    // codes for calling functions.
+                    char copy_hook[100];
+                    strcpy(copy_hook, currentDirectory);
+                    strcat(copy_hook, "\\\\hook.txt");
+                    FILE *hello = fopen(copy_hook, "r");
+                    char lines[100];
+                    // while (fgets(lines,sizeof(lines),hello)!=NULL){
+                    //     lines[strcspn(lines,"\n")]='\0';
+                    //     if (strcmp(lines,"character-limit")==0){
+                    //         characters(copy_s);
+                    //     }
+                    //     if (strcmp(lines,"time-limit")==0){
+                    //      checkFileTimes(copy_s);
+                    //     }
+                    //     if (strcmp(lines,"file-size-check")==0){
+                    //         isFileLarge(copy_s);
+                    //     }
+                    //     if (strcmp(lines,"format-check")==0){
+                    //         isFormatCorrect(entry->d_name);
+                    //     }
+                    // }
+                    checkFileTimes(copy_s);
+                    isFileLarge(copy_s);
+                    isFormatCorrect(entry->d_name);
+                    characters(copy_s);
+                    whitespace(copy_s);
+                    TODO(copy_s);
+                }
+            }
 
-            // codes for calling functions.
-            char copy_hook[100];
-            strcpy(copy_hook,currentDirectory);
-            strcat(copy_hook,"\\\\hook.txt");
-            FILE* hello = fopen(copy_hook,"r");
-            char lines[100];
-            // while (fgets(lines,sizeof(lines),hello)!=NULL){
-            //     lines[strcspn(lines,"\n")]='\0';
-            //     if (strcmp(lines,"character-limit")==0){
-            //         characters(copy_s);
-            //     }
-            //     if (strcmp(lines,"time-limit")==0){
-            //      checkFileTimes(copy_s);   
-            //     }
-            //     if (strcmp(lines,"file-size-check")==0){
-            //         isFileLarge(copy_s);
-            //     }
-            //     if (strcmp(lines,"format-check")==0){
-            //         isFormatCorrect(entry->d_name);
-            //     }
-            // }
-            checkFileTimes(copy_s);
-            isFileLarge(copy_s);
-            isFormatCorrect(entry->d_name);
-            characters(copy_s);
-
+            // Close the directory
+            closedir(dir);
         }
-        }
 
-        // Close the directory
-        closedir(dir);
-
-    }
-        
-        else if (strncmp(command,"neogit pre-commit add hook",28)==0){
+        else if (strncmp(command, "neogit pre-commit add hook", 28) == 0)
+        {
             char hook[100];
-            search(command,hook);
+            search(command, hook);
             char copy_hook[100];
-            strcpy(copy_hook,currentDirectory);
-            strcat(copy_hook,"\\\\hook.txt");
-            FILE* h = fopen(copy_hook,"a");
-            fprintf(h, "%s\n",hook);
-            fclose (h);
+            strcpy(copy_hook, currentDirectory);
+            strcat(copy_hook, "\\\\hook.txt");
+            FILE *h = fopen(copy_hook, "a");
+            fprintf(h, "%s\n", hook);
+            fclose(h);
         }
-    
-        else if (strncmp(command,"neogit pre-commit applied hooks",31)==0){
+
+        else if (strncmp(command, "neogit pre-commit applied hooks", 31) == 0)
+        {
 
             char copy_hook[100];
-            strcpy(copy_hook,currentDirectory);
-            strcat(copy_hook,"\\\\hook.txt");
-            FILE* h = fopen(copy_hook,"r");
-            char line [100];
-            while (fgets(line,sizeof(line),h)!=NULL){
-                printf("%s",line);
+            strcpy(copy_hook, currentDirectory);
+            strcat(copy_hook, "\\\\hook.txt");
+            FILE *h = fopen(copy_hook, "r");
+            char line[100];
+            while (fgets(line, sizeof(line), h) != NULL)
+            {
+                printf("%s", line);
             }
             fclose(h);
         }
 
-        else if (strncmp(command,"neogit pre-commit remove hook",29)==0){
+        else if (strncmp(command, "neogit pre-commit remove hook", 29) == 0)
+        {
             char hook[100];
-            FILE* f = fopen(temp_c,"w");
+            FILE *f = fopen(temp_c, "w");
             char copy_hook[100];
-            strcpy(copy_hook,currentDirectory);
-            strcat(copy_hook,"\\\\hook.txt");
-            FILE* h = fopen(copy_hook,"r");
-            search(command,hook);
+            strcpy(copy_hook, currentDirectory);
+            strcat(copy_hook, "\\\\hook.txt");
+            FILE *h = fopen(copy_hook, "r");
+            search(command, hook);
             char line[100];
-            while (fgets(line,sizeof(line),h)!=NULL){
-                line [strcspn(line,"\n")]='\0';
-                if (strcmp(line,hook)!=0){
-                    fprintf(f,"%s\n",line);
+            while (fgets(line, sizeof(line), h) != NULL)
+            {
+                line[strcspn(line, "\n")] = '\0';
+                if (strcmp(line, hook) != 0)
+                {
+                    fprintf(f, "%s\n", line);
                 }
             }
             fclose(f);
             fclose(h);
             remove(copy_hook);
-            rename(temp_c,copy_hook);
+            rename(temp_c, copy_hook);
             fclose(f);
         }
+       
+        else if (strncmp("neogit pre-commit -f", command, 20) == 0)
+        { // error staging nemide
+            char *res[1000];
+            char a[100][100];
+            int flag_error_for_not_exist = 0;
+            int can = token_del(res, command);
+            for (int d = 0; d < can; d++)
+            {
 
-        else if (strncmp(command,"neogit pre-commit hooks list",28)==0){
-            printf("%s\n","todo-check");
-            printf("%s\n","eof-blank-space");
-            printf("%s\n","format-check");
-            printf("%s\n","balance-braces");
-            printf("%s\n","indentation-check");
-            printf("%s\n","static-error-check");
-            printf("%s\n","file-size-check");
-            printf("%s\n","character-limit");
-            printf("%s\n","time-limit");
+                char *base = basename(res[d]);
+
+                if (fileExists(res[d]))
+                {
+                    printf("%s\n", base);
+
+                    checkFileTimes(res[d]);
+                    isFileLarge(res[d]);
+                    isFormatCorrect(base);
+                    characters(res[d]);
+                    whitespace(res[d]);
+                    TODO(res[d]);
+                }
+                else
+                {
+                    printf("The path does not exist\n");
+
+                    flag_error_for_not_exist = 1;
+                }
+            }
         }
 
+        else if (strncmp(command, "neogit pre-commit hooks list", 28) == 0)
+        {
+            printf("%s\n", "todo-check");
+            printf("%s\n", "eof-blank-space");
+            printf("%s\n", "format-check");
+            printf("%s\n", "balance-braces");
+            printf("%s\n", "indentation-check");
+            printf("%s\n", "static-error-check");
+            printf("%s\n", "file-size-check");
+            printf("%s\n", "character-limit");
+            printf("%s\n", "time-limit");
+        }
+        
+        else if (strncmp(command, "neogit grep -f", 14) == 0) // neogit grep -f <E:\Git_proj\neogit\unstage\hi.txt><hi>
+        {
+            char *add_res[100];
+            int save[1000];
+            char b[100][100];
+            int base = 0;
+            int ll = 1;
+            int ondex = 0;
+            token_del(add_res, command);
+            // printf("%s\n", add_res[0]);
+            // printf("%s\n", add_res[1]);
+            FILE *k = fopen(add_res[0], "r");
+            char line[100];
+            while (fgets((line), 100, k) != NULL)
+            {
+                line[strcspn(line, "\n")] = '\0';
+                /* if (strstr(line, add_res[1]) != NULL)
+                 {
+                     save[ondex] = ll;
+                     ondex++;
+                 }*/
+
+                char *extract[1000];
+                int index = 0;
+                char delimeter[] = " ";
+                char *ptr = strtok(line, delimeter);
+                while (ptr != NULL)
+                {
+                    extract[index] = ptr;
+                    if (strcmp(extract[index], add_res[1]) == 0)
+                    {
+                        strcpy(b[base], line);
+                        base++;
+                        save[ondex] = ll;
+                        ondex++;
+                        break;
+                    }
+                    index++;
+                    ptr = strtok(NULL, delimeter);
+                }
+                ll++;
+            }
+            fclose(k);
+            for (int lk = 0; lk < ondex; lk++)
+            {
+                printf("%d\n", save[lk]);
+            }
+            for (int h = 0; h < base; h++)
+            {
+                printf("%s\n", b[h]);
+                printf("\033[0;34m");
+                printf("%s\n", add_res[1]);
+            }
+        }
+        
+        else if (strncmp(command, "neogit grep -c", 14) == 0) // neogit grep -c <filename><commit_id><word>
+        {
+            char b[100][100];
+            int base = 0;
+            char *add_res[100];
+            int save[1000];
+            int ll = 1;
+            int ondex = 0;
+            token_del(add_res, command);
+            // printf("%s\n", add_res[0]);
+            // printf("%s\n", add_res[1]);
+            // printf("%s\n", add_res[2]);
+            char file_Add[100];
+            strcpy(file_Add, currentDirectory);
+            strcat(file_Add, "\\commit\\");
+            strcat(file_Add, add_res[1]);
+            strcat(file_Add, "\\\\");
+            strcat(file_Add, add_res[0]);
+            strcat(file_Add, ".txt");
+            FILE *k = fopen(file_Add, "r");
+            char line[100];
+            while (fgets((line), 100, k) != NULL)
+            {
+                line[strcspn(line, "\n")] = '\0';
+                /* if (strstr(line, add_res[1]) != NULL)
+                 {
+                     save[ondex] = ll;
+                     ondex++;
+                 }*/
+
+                char *extract[1000];
+                int index = 0;
+                char delimeter[] = " ";
+                char *ptr = strtok(line, delimeter);
+                while (ptr != NULL)
+                {
+                    extract[index] = ptr;
+                    if (strcmp(extract[index], add_res[2]) == 0)
+                    {
+                        strcpy(b[base], line);
+                        base++;
+                        save[ondex] = ll;
+                        ondex++;
+                        break;
+                    }
+                    index++;
+                    ptr = strtok(NULL, delimeter);
+                }
+                ll++;
+            }
+            fclose(k);
+            for (int lk = 0; lk < ondex; lk++)
+            {
+                printf("%d\n", save[lk]);
+            }
+            for (int h = 0; h < base; h++)
+            {
+                printf("%s\n", b[h]);
+                printf("\033[0;34m");
+                printf("%s\n", add_res[2]);
+            }
+        }
+    
     }
 }
